@@ -1,0 +1,337 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>San Isidro - Cabina de Custodia V76</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        :root {
+            --bg: #0f172a; --card: #1e293b; --accent: #38bdf8; --text: #f1f5f9;
+            --border: #334155; --danger: #ef4444; --success: #10b981; --warning: #f59e0b;
+        }
+        body { font-family: 'Segoe UI', sans-serif; background: var(--bg); color: var(--text); margin: 0; padding: 15px; }
+        .login-screen { max-width: 400px; margin: 100px auto; background: var(--card); padding: 30px; border-radius: 12px; border: 1px solid var(--accent); text-align: center; }
+        .app-container { display: none; max-width: 1550px; margin: auto; }
+        .header { border-bottom: 2px solid var(--accent); padding-bottom: 10px; margin-bottom: 5px; display: flex; justify-content: space-between; align-items: flex-start; }
+        .brand-zone { text-align: right; }
+        .powered { font-size: 0.7rem; color: var(--accent); font-weight: bold; margin-bottom: 2px; }
+        .tabs { display: flex; gap: 5px; margin-top: 15px; margin-bottom: 15px; }
+        .tab-btn { background: var(--card); color: var(--text); padding: 12px 20px; border-radius: 8px 8px 0 0; border: 1px solid var(--border); cursor: pointer; font-weight: bold; }
+        .tab-btn.active { background: var(--accent); color: var(--bg); }
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+        .section { background: var(--card); padding: 20px; border-radius: 12px; margin-bottom: 20px; border: 1px solid var(--border); }
+        .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; align-items: end; }
+        .input-group { display: flex; flex-direction: column; gap: 5px; }
+        label { font-size: 0.75rem; color: var(--accent); font-weight: bold; }
+        input, select { background: #0f172a; border: 1px solid var(--border); color: white; padding: 10px; border-radius: 6px; outline: none; font-size: 0.8rem; }
+        input:focus { border-color: var(--accent); box-shadow: 0 0 5px rgba(56, 189, 248, 0.3); }
+        .hidden { display: none !important; }
+        button { cursor: pointer; padding: 10px; border-radius: 6px; border: none; font-weight: bold; transition: opacity 0.2s; }
+        button:hover { opacity: 0.8; }
+        .btn-main { background: var(--accent); color: #0f172a; width: 100%; }
+        .btn-del { background: var(--danger); color: white; font-size: 0.7rem; }
+        .btn-exit { background: #818cf8; color: white; font-size: 0.7rem; }
+        .btn-edit { background: var(--warning); color: white; font-size: 0.7rem; }
+        .btn-tool { background: var(--card); color: var(--accent); border: 1px solid var(--accent); font-size: 0.7rem; }
+        .btn-tool.active { background: var(--accent); color: var(--bg); }
+        .btn-view { background: #6366f1; color: white; font-size: 0.7rem; padding: 4px 8px; }
+        table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+        th, td { padding: 10px; text-align: left; border-bottom: 1px solid var(--border); font-size: 0.8rem; }
+        th { background: #334155; color: var(--accent); }
+        .file-zone { border: 1px dashed var(--border); padding: 5px; border-radius: 6px; background: #0f172a; }
+        .time-badge { font-size: 0.7rem; background: #334155; padding: 2px 6px; border-radius: 4px; color: var(--accent); display: block; margin-top: 4px; }
+        .controls-row { display: flex; gap: 10px; margin-bottom: 10px; align-items: center; }
+        .search-input { flex-grow: 1; }
+    </style>
+</head>
+<body>
+
+<div id="login-block" class="login-screen">
+    <h2 style="color: var(--accent)">Acceso Remoto San Isidro</h2>
+    <input type="email" id="log-email" placeholder="Email" style="width:90%; margin-bottom:10px;">
+    <input type="password" id="log-pass" placeholder="Contraseña" style="width:90%; margin-bottom:10px;">
+    <button class="btn-main" onclick="handleLogin()">INGRESAR</button>
+</div>
+
+<div id="app-block" class="app-container">
+    <div class="header">
+        <div><h1 style="margin:0;">San Isidro - Cabina de Custodia</h1><button class="btn-del" onclick="handleLogout()" style="margin-top:5px;">SALIR</button></div>
+        <div class="brand-zone">
+            <div class="powered">Powered by GabyMartin</div>
+            <div id="clock" style="font-size: 0.9rem; font-weight: bold; color: var(--accent);"></div>
+        </div>
+    </div>
+
+    <div class="tabs">
+        <button class="tab-btn active" onclick="openTab('acceso')">ACCESO</button>
+        <button class="tab-btn" onclick="openTab('paquetes')">PAQUETERÍA</button>
+        <button class="tab-btn" onclick="openTab('caja')">CAJA CHICA</button>
+    </div>
+
+    <div id="acceso" class="tab-content active">
+        <div class="section">
+            <form id="f-acc" class="grid" onsubmit="guardarAcceso(event)">
+                <div class="input-group"><label>DNI (Opcional)</label><input type="text" id="dni" oninput="triggerAuto(this.value, 'dni')"></div>
+                <div class="input-group"><label>Nombre</label><input type="text" id="nom" required oninput="triggerAuto(this.value, 'nom')"></div>
+                <div class="input-group"><label>Apellido</label><input type="text" id="ape" required oninput="triggerAuto(this.value, 'ape')"></div>
+                <div class="input-group"><label>Motivo</label><input type="text" id="mot" required></div>
+                <div class="input-group"><label>Foto/DNI</label><div class="file-zone"><input type="file" id="acc-file" accept="image/*"></div></div>
+                <div class="input-group edit-mode-acc hidden"><label>Reloj Ingreso</label><input type="datetime-local" id="edit-ing"></div>
+                <div class="input-group edit-mode-acc hidden"><label>Reloj Egreso</label><input type="datetime-local" id="edit-egr"></div>
+                <div style="display: flex; gap: 10px;">
+                    <button type="submit" id="btn-acc-save" class="btn-main">INGRESAR PERSONA</button>
+                    <button type="button" id="btn-acc-cancel" class="btn-del hidden" onclick="cancelarEditAcc()">CANCELAR</button>
+                </div>
+            </form>
+        </div>
+        <div class="controls-row">
+            <input type="text" id="acc-search" class="search-input" placeholder="Filtrar tabla..." oninput="renderAcc()">
+            <button id="btn-solo-sitio" class="btn-tool" onclick="toggleSitio()">EN LA QUINTA</button>
+            <button class="btn-tool" onclick="exportData('acceso')">EXPORTAR</button>
+            <button class="btn-tool" onclick="document.getElementById('imp-acc').click()">IMPORTAR</button>
+            <input type="file" id="imp-acc" class="hidden" onchange="importData(event, 'acceso')">
+        </div>
+        <table><thead><tr><th>Persona</th><th>DNI</th><th>Motivo</th><th>Ingreso</th><th>Egreso</th><th>Doc</th><th>Acciones</th></tr></thead><tbody id="t-acc"></tbody></table>
+    </div>
+
+    <div id="paquetes" class="tab-content">
+        <div class="section">
+            <form id="f-paq" class="grid" onsubmit="guardarPaquete(event)">
+                <div class="input-group"><label>Ref/ID</label><input type="text" id="p-id"></div>
+                <div class="input-group"><label>Descripción</label><input type="text" id="p-desc" required></div>
+                <div class="input-group"><label>Para</label><input type="text" id="p-para" required></div>
+                <div class="input-group"><label>Remito</label><div class="file-zone"><input type="file" id="paq-file" accept="image/*"></div></div>
+                <div class="input-group edit-mode-paq hidden"><label>Fecha Ingreso</label><input type="datetime-local" id="edit-f-paq"></div>
+                <div class="input-group edit-mode-paq hidden"><label>Fecha Entrega</label><input type="datetime-local" id="edit-f-ent"></div>
+                <div style="display: flex; gap: 10px; width: 100%; grid-column: span 1 / -1;">
+                    <button type="submit" id="btn-paq-save" class="btn-main">CARGAR PAQUETE</button>
+                    <button type="button" id="btn-paq-cancel" class="btn-del hidden" onclick="cancelarEditPaq()">CANCELAR</button>
+                </div>
+            </form>
+        </div>
+        <div class="controls-row">
+            <div style="flex-grow: 1;"></div>
+            <button class="btn-tool" onclick="exportData('paquetes')">EXPORTAR</button>
+            <button class="btn-tool" onclick="document.getElementById('imp-paq').click()">IMPORTAR</button>
+            <input type="file" id="imp-paq" class="hidden" onchange="importData(event, 'paquetes')">
+        </div>
+        <table><thead><tr><th>Ref</th><th>Descripción</th><th>Para</th><th>Ingreso</th><th>Estado / Retiro</th><th>Doc</th><th>Acciones</th></tr></thead><tbody id="t-paq"></tbody></table>
+    </div>
+
+    <div id="caja" class="tab-content">
+        <div class="section">
+            <div id="balance" style="font-size: 1.2rem; font-weight: bold; margin-bottom: 10px; color: var(--success);">Saldo: $0.00</div>
+            <form id="f-cj" class="grid" onsubmit="guardarCaja(event)">
+                <div class="input-group"><label>Tipo</label><select id="cj-tipo"><option value="INGRESO">INGRESO (+)</option><option value="EGRESO">EGRESO (-)</option></select></div>
+                <div class="input-group"><label>Monto</label><input type="number" id="cj-monto" step="0.01" required></div>
+                <div class="input-group"><label>Responsable</label><input type="text" id="cj-resp" required></div>
+                <div class="input-group"><label>Motivo</label><input type="text" id="cj-mot" required></div>
+                <div class="input-group"><label>Ticket</label><div class="file-zone"><input type="file" id="cj-file" accept="image/*"></div></div>
+                <div class="input-group edit-mode-cj hidden"><label>Fecha Manual</label><input type="datetime-local" id="edit-f-cj"></div>
+                <div style="display: flex; gap: 10px;">
+                    <button type="submit" id="btn-cj-save" class="btn-main">GRABAR REGISTRO</button>
+                    <button type="button" id="btn-cj-cancel" class="btn-del hidden" onclick="cancelarEditCj()">CANCELAR</button>
+                </div>
+            </form>
+        </div>
+        <div class="controls-row">
+            <div style="flex-grow: 1;"></div>
+            <button class="btn-tool" onclick="exportData('caja')">EXPORTAR</button>
+            <button class="btn-tool" onclick="document.getElementById('imp-cj').click()">IMPORTAR</button>
+            <input type="file" id="imp-cj" class="hidden" onchange="importData(event, 'caja')">
+        </div>
+        <table><thead><tr><th>Fecha</th><th>Responsable</th><th>Tipo</th><th>Monto</th><th>Doc</th><th>Acciones</th></tr></thead><tbody id="t-cj"></tbody></table>
+    </div>
+</div>
+
+<script>
+    const SB_URL = "https://napguoewizjmclzdjyri.supabase.co";
+    const SB_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5hcGd1b2V3aXpqbWNsemRqeXJpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY5NTQ3NjksImV4cCI6MjA5MjUzMDc2OX0.5okmut-6fo5SALwqKX2EuZCoAiFVtdGlGOiOrw5nLlQ";
+    const sb = supabase.createClient(SB_URL, SB_KEY);
+
+    let editIdAcc = null, editIdPaq = null, editIdCj = null, soloSitio = false, timerAuto;
+
+    const fDt = (ms) => ms ? new Date(ms).toLocaleString('es-AR', { hour12: false }) : '-';
+    const toInp = (ms) => ms ? new Date(ms - (new Date().getTimezoneOffset() * 60000)).toISOString().slice(0, 16) : '';
+    const calcTime = (start, end) => { const ms = (end || Date.now()) - start; return `${Math.floor(ms/3600000)}h ${Math.floor((ms%3600000)/60000)}m`; };
+
+    function updateClock() {
+        const now = new Date();
+        const dias = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
+        document.getElementById('clock').innerText = `${dias[now.getDay()]} ${now.toLocaleDateString('es-AR')} ${now.toLocaleTimeString('es-AR', {hour12:false})}`;
+    }
+    setInterval(updateClock, 1000); updateClock();
+
+    async function handleLogin() {
+        const e = document.getElementById('log-email').value, p = document.getElementById('log-pass').value;
+        const { error } = await sb.auth.signInWithPassword({ email: e, password: p });
+        if (error) alert(error.message); else { document.getElementById('login-block').style.display='none'; document.getElementById('app-block').style.display='block'; renderAll(); }
+    }
+    async function handleLogout() { await sb.auth.signOut(); location.reload(); }
+
+    async function renderAcc() {
+        const tbody = document.getElementById('t-acc'); const s = document.getElementById('acc-search').value.toUpperCase();
+        let { data } = await sb.from('acceso').select('*').order('ing', { ascending: false });
+        tbody.innerHTML = '';
+        data?.forEach(r => {
+            if(soloSitio && r.egr) return;
+            if(!s || r.nom.includes(s) || r.ape.includes(s) || (r.dni && r.dni.includes(s)) || (r.mot && r.mot.includes(s))) {
+                tbody.innerHTML += `<tr>
+                    <td>${r.nom} ${r.ape}<br><span class="time-badge">${calcTime(r.ing, r.egr)}</span></td>
+                    <td>${r.dni || '-'}</td>
+                    <td><small>${r.mot || '-'}</small></td>
+                    <td>${fDt(r.ing)}</td><td>${fDt(r.egr)}</td>
+                    <td>${r.url?`<button class="btn-view" onclick="window.open('${r.url}')">📄</button>`:'-'}</td>
+                    <td><button class="btn-exit" onclick="salidaAcc(${r.id})">SALIDA</button> <button class="btn-edit" onclick='prepararEditAcc(${JSON.stringify(r)})'>✎</button> <button class="btn-del" onclick="del('acceso',${r.id})">X</button></td>
+                </tr>`;
+            }
+        });
+    }
+
+    async function guardarAcceso(e) {
+        e.preventDefault(); const url = await uploadFile('acc-file');
+        const row = { 
+            dni:document.getElementById('dni').value || null, 
+            nom:document.getElementById('nom').value.toUpperCase(), 
+            ape:document.getElementById('ape').value.toUpperCase(), 
+            mot:document.getElementById('mot').value.toUpperCase() 
+        };
+        if(url) row.url = url;
+        if(editIdAcc) {
+            row.ing = new Date(document.getElementById('edit-ing').value).getTime();
+            row.egr = document.getElementById('edit-egr').value ? new Date(document.getElementById('edit-egr').value).getTime() : null;
+            await sb.from('acceso').update(row).eq('id', editIdAcc); cancelarEditAcc();
+        } else { row.ing = Date.now(); await sb.from('acceso').insert([row]); }
+        e.target.reset(); renderAcc();
+        document.getElementById('dni').focus();
+    }
+
+    async function salidaAcc(id) { await sb.from('acceso').update({ egr: Date.now() }).eq('id', id); renderAcc(); }
+    function toggleSitio() { soloSitio = !soloSitio; document.getElementById('btn-solo-sitio').classList.toggle('active'); renderAcc(); }
+    function prepararEditAcc(r) { editIdAcc=r.id; document.getElementById('dni').value=r.dni || ''; document.getElementById('nom').value=r.nom; document.getElementById('ape').value=r.ape; document.getElementById('mot').value=r.mot; document.querySelectorAll('.edit-mode-acc').forEach(el=>el.classList.remove('hidden')); document.getElementById('edit-ing').value=toInp(r.ing); document.getElementById('edit-egr').value=toInp(r.egr); document.getElementById('btn-acc-save').innerText="ACTUALIZAR"; document.getElementById('btn-acc-cancel').classList.remove('hidden'); }
+    function cancelarEditAcc() { editIdAcc=null; document.getElementById('f-acc').reset(); document.querySelectorAll('.edit-mode-acc').forEach(el=>el.classList.add('hidden')); document.getElementById('btn-acc-save').innerText="INGRESAR PERSONA"; document.getElementById('btn-acc-cancel').classList.add('hidden'); }
+
+    async function renderPaq() {
+        const tbody = document.getElementById('t-paq'); 
+        let { data } = await sb.from('paquetes').select('*').order('f', { ascending: false });
+        tbody.innerHTML = '';
+        data?.forEach(p => {
+            const entregado = p.f_ent;
+            tbody.innerHTML += `<tr><td>${p.eid||'-'}</td><td>${p.desc}</td><td>${p.para}</td><td>${fDt(p.f)}</td>
+            <td><strong>${p.est}</strong>${p.f_ent ? `<br><span class="time-badge">Retiró: ${fDt(p.f_ent)}</span>` : ''}</td>
+            <td>${p.url?`<button class="btn-view" onclick="window.open('${p.url}')">📦</button>`:'-'}</td>
+            <td>${!entregado ? `<button class="btn-exit" onclick="entregarPaq(${p.id})">ENTREGAR</button>` : ''} <button class="btn-edit" onclick='prepararEditPaq(${JSON.stringify(p)})'>✎</button> <button class="btn-del" onclick="del('paquetes',${p.id})">X</button></td></tr>`;
+        });
+    }
+    async function entregarPaq(id) {
+        const nombre = prompt("¿Quién retira?"); if (!nombre) return;
+        await sb.from('paquetes').update({ est: `ENTREGADO A: ${nombre.toUpperCase()}`, f_ent: Date.now() }).match({ id: Number(id) });
+        renderPaq();
+    }
+    async function guardarPaquete(e) {
+        e.preventDefault(); const url = await uploadFile('paq-file');
+        const row = { eid:document.getElementById('p-id').value, desc:document.getElementById('p-desc').value.toUpperCase(), para:document.getElementById('p-para').value.toUpperCase() };
+        if(url) row.url = url;
+        if(editIdPaq) {
+            row.f = new Date(document.getElementById('edit-f-paq').value).getTime();
+            const fEntVal = document.getElementById('edit-f-ent').value;
+            row.f_ent = fEntVal ? new Date(fEntVal).getTime() : null;
+            await sb.from('paquetes').update(row).eq('id', editIdPaq); cancelarEditPaq();
+        } else { row.f = Date.now(); row.est = "PENDIENTE"; await sb.from('paquetes').insert([row]); }
+        e.target.reset(); renderPaq();
+        document.getElementById('p-id').focus();
+    }
+    function prepararEditPaq(p) { editIdPaq=p.id; document.getElementById('p-id').value=p.eid||''; document.getElementById('p-desc').value=p.desc; document.getElementById('p-para').value=p.para; document.querySelectorAll('.edit-mode-paq').forEach(el=>el.classList.remove('hidden')); document.getElementById('edit-f-paq').value=toInp(p.f); document.getElementById('edit-f-ent').value=p.f_ent ? toInp(p.f_ent) : ''; document.getElementById('btn-paq-save').innerText="ACTUALIZAR"; document.getElementById('btn-paq-cancel').classList.remove('hidden'); }
+    function cancelarEditPaq() { editIdPaq=null; document.getElementById('f-paq').reset(); document.querySelectorAll('.edit-mode-paq').forEach(el=>el.classList.add('hidden')); document.getElementById('btn-paq-save').innerText="CARGAR PAQUETE"; document.getElementById('btn-paq-cancel').classList.add('hidden'); }
+
+    async function renderCaja() {
+        const tbody = document.getElementById('t-cj'); let { data } = await sb.from('caja').select('*').order('f', { ascending: false });
+        let bal = 0; tbody.innerHTML = '';
+        data?.forEach(c => {
+            bal += (c.tipo==='INGRESO' ? c.monto : -c.monto);
+            tbody.innerHTML += `<tr><td>${fDt(c.f)}</td><td>${c.resp}</td><td>${c.tipo}</td><td>$${c.monto.toFixed(2)}</td>
+            <td>${c.url?`<button class="btn-view" onclick="window.open('${c.url}')">🧾</button>`:'-'}</td>
+            <td><button class="btn-edit" onclick='prepararEditCj(${JSON.stringify(c)})'>✎</button> <button class="btn-del" onclick="del('caja',${c.id})">X</button></td></tr>`;
+        });
+        document.getElementById('balance').innerText = `Saldo: $${bal.toFixed(2)}`;
+    }
+    async function guardarCaja(e) {
+        e.preventDefault(); const url = await uploadFile('cj-file');
+        const row = { tipo:document.getElementById('cj-tipo').value, monto:parseFloat(document.getElementById('cj-monto').value), resp:document.getElementById('cj-resp').value.toUpperCase(), mot:document.getElementById('cj-mot').value.toUpperCase() };
+        if(url) row.url = url;
+        if(editIdCj) {
+            row.f = new Date(document.getElementById('edit-f-cj').value).getTime();
+            await sb.from('caja').update(row).eq('id', editIdCj); cancelarEditCj();
+        } else { row.f = Date.now(); await sb.from('caja').insert([row]); }
+        e.target.reset(); renderCaja();
+        document.getElementById('cj-monto').focus();
+    }
+    function prepararEditCj(c) { editIdCj=c.id; document.getElementById('cj-tipo').value=c.tipo; document.getElementById('cj-monto').value=c.monto; document.getElementById('cj-resp').value=c.resp; document.getElementById('cj-mot').value=c.mot; document.querySelectorAll('.edit-mode-cj').forEach(el=>el.classList.remove('hidden')); document.getElementById('edit-f-cj').value=toInp(c.f); document.getElementById('btn-cj-save').innerText="ACTUALIZAR"; document.getElementById('btn-cj-cancel').classList.remove('hidden'); }
+    function cancelarEditCj() { editIdCj=null; document.getElementById('f-cj').reset(); document.querySelectorAll('.edit-mode-cj').forEach(el=>el.classList.add('hidden')); document.getElementById('btn-cj-save').innerText="GRABAR REGISTRO"; document.getElementById('btn-cj-cancel').classList.add('hidden'); }
+
+    async function uploadFile(id) {
+        const file = document.getElementById(id).files[0]; if (!file) return null;
+        const name = `${Date.now()}_${file.name.replace(/\s+/g, '_')}`;
+        await sb.storage.from('adjuntos').upload(name, file);
+        return sb.storage.from('adjuntos').getPublicUrl(name).data.publicUrl;
+    }
+    async function del(t, id) { if(confirm("¿Eliminar?")) { await sb.from(t).delete().eq('id', id); renderAll(); } }
+    function renderAll() { renderAcc(); renderPaq(); renderCaja(); }
+    function openTab(id) { document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active')); document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active')); document.getElementById(id).classList.add('active'); event.currentTarget.classList.add('active'); }
+    
+    async function exportData(t) { 
+        const { data } = await sb.from(t).select('*'); 
+        const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' }); 
+        const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `${t}_backup.json`; a.click(); 
+    }
+    async function importData(e, t) { 
+        const file = e.target.files[0]; if(!file) return; 
+        const reader = new FileReader(); 
+        reader.onload = async (ev) => { 
+            try { 
+                const json = JSON.parse(ev.target.result); 
+                for(const item of json) { delete item.id; await sb.from(t).insert([item]); } 
+                alert("Importación Exitosa"); renderAll(); 
+            } catch(err) { alert("Error"); } 
+        }; reader.readAsText(file); 
+    }
+
+    // MEJORA: Lógica de autocompletado inteligente
+    function triggerAuto(val, field) { 
+        clearTimeout(timerAuto); 
+        timerAuto = setTimeout(() => ejecutarAuto(val, field), 700); 
+    }
+
+    async function ejecutarAuto(val, field) {
+        const v = val.trim(); 
+        const currentDni = document.getElementById('dni').value.trim();
+
+        // Si estamos editando o el valor es muy corto, no hacemos nada
+        if (v.length < 3 || editIdAcc) return;
+
+        // REGLA DE ORO: Si estoy escribiendo por NOMBRE/APELLIDO pero ya puse un DNI manual, 
+        // NO quiero que el autocompletado me pise los datos.
+        if ((field === 'nom' || field === 'ape') && currentDni.length > 0) return;
+
+        let query = sb.from('acceso').select('dni, nom, ape');
+        
+        if (field === 'dni') {
+            query = query.eq('dni', v);
+        } else {
+            query = query.or(`nom.ilike.%${v}%,ape.ilike.%${v}%`);
+        }
+
+        const { data } = await query.order('ing', { ascending: false }).limit(1);
+        
+        if (data?.length > 0) { 
+            const r = data[0]; 
+            if(r.dni) document.getElementById('dni').value = r.dni; 
+            document.getElementById('nom').value = r.nom; 
+            document.getElementById('ape').value = r.ape; 
+        }
+    }
+</script>
+</body>
+</html>
