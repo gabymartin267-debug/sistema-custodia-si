@@ -23,7 +23,7 @@
         .tab-content.active { display: block; }
         .section { background: var(--card); padding: 20px; border-radius: 12px; margin-bottom: 20px; border: 1px solid var(--border); }
         .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; align-items: end; }
-        .input-group { display: flex; flex-direction: column; gap: 5px; }
+        .input-group { display: flex; flex-direction: column; gap: 5px; position: relative; }
         label { font-size: 0.75rem; color: var(--accent); font-weight: bold; }
         input, select { background: #0f172a; border: 1px solid var(--border); color: white; padding: 10px; border-radius: 6px; outline: none; font-size: 0.8rem; }
         input:focus { border-color: var(--accent); box-shadow: 0 0 5px rgba(56, 189, 248, 0.3); }
@@ -44,6 +44,28 @@
         .time-badge { font-size: 0.7rem; background: #334155; padding: 2px 6px; border-radius: 4px; color: var(--accent); display: block; margin-top: 4px; }
         .controls-row { display: flex; gap: 10px; margin-bottom: 10px; align-items: center; }
         .search-input { flex-grow: 1; }
+
+        /* NUEVOS ESTILOS PARA LA LISTA DE SUGERENCIAS */
+        .sugerencias-lista {
+            position: absolute;
+            top: 100%;
+            left: 0;
+            right: 0;
+            background: var(--card);
+            border: 1px solid var(--accent);
+            z-index: 999;
+            max-height: 150px;
+            overflow-y: auto;
+            border-radius: 0 0 6px 6px;
+            display: none;
+        }
+        .sugerencia-item {
+            padding: 8px 12px;
+            cursor: pointer;
+            border-bottom: 1px solid var(--border);
+            font-size: 0.75rem;
+        }
+        .sugerencia-item:hover { background: var(--border); }
     </style>
 </head>
 <body>
@@ -73,9 +95,21 @@
     <div id="acceso" class="tab-content active">
         <div class="section">
             <form id="f-acc" class="grid" onsubmit="guardarAcceso(event)">
-                <div class="input-group"><label>DNI (Opcional)</label><input type="text" id="dni" oninput="triggerAuto(this.value, 'dni')"></div>
-                <div class="input-group"><label>Nombre</label><input type="text" id="nom" required oninput="triggerAuto(this.value, 'nom')"></div>
-                <div class="input-group"><label>Apellido</label><input type="text" id="ape" required oninput="triggerAuto(this.value, 'ape')"></div>
+                <div class="input-group">
+                    <label>DNI (Opcional)</label>
+                    <input type="text" id="dni" oninput="triggerAuto(this.value, 'dni')">
+                    <div id="sug-dni" class="sugerencias-lista"></div>
+                </div>
+                <div class="input-group">
+                    <label>Nombre</label>
+                    <input type="text" id="nom" required oninput="triggerAuto(this.value, 'nom')">
+                    <div id="sug-nom" class="sugerencias-lista"></div>
+                </div>
+                <div class="input-group">
+                    <label>Apellido</label>
+                    <input type="text" id="ape" required oninput="triggerAuto(this.value, 'ape')">
+                    <div id="sug-ape" class="sugerencias-lista"></div>
+                </div>
                 <div class="input-group"><label>Motivo</label><input type="text" id="mot" required></div>
                 <div class="input-group"><label>Foto/DNI</label><div class="file-zone"><input type="file" id="acc-file" accept="image/*"></div></div>
                 <div class="input-group edit-mode-acc hidden"><label>Reloj Ingreso</label><input type="datetime-local" id="edit-ing"></div>
@@ -298,40 +332,56 @@
         }; reader.readAsText(file); 
     }
 
-    // MEJORA: Lógica de autocompletado inteligente
+    // MEJORA: Lógica de selección manual para evitar conflictos
     function triggerAuto(val, field) { 
         clearTimeout(timerAuto); 
-        timerAuto = setTimeout(() => ejecutarAuto(val, field), 700); 
+        timerAuto = setTimeout(() => ejecutarAuto(val, field), 500); 
     }
 
     async function ejecutarAuto(val, field) {
         const v = val.trim(); 
-        const currentDni = document.getElementById('dni').value.trim();
+        const box = document.getElementById(`sug-${field}`);
+        
+        // Limpiamos listas anteriores de otros campos
+        document.querySelectorAll('.sugerencias-lista').forEach(el => el.style.display = 'none');
 
-        // Si estamos editando o el valor es muy corto, no hacemos nada
         if (v.length < 3 || editIdAcc) return;
 
-        // REGLA DE ORO: Si estoy escribiendo por NOMBRE/APELLIDO pero ya puse un DNI manual, 
-        // NO quiero que el autocompletado me pise los datos.
-        if ((field === 'nom' || field === 'ape') && currentDni.length > 0) return;
-
         let query = sb.from('acceso').select('dni, nom, ape');
-        
-        if (field === 'dni') {
-            query = query.eq('dni', v);
-        } else {
-            query = query.or(`nom.ilike.%${v}%,ape.ilike.%${v}%`);
-        }
+        if (field === 'dni') query = query.eq('dni', v);
+        else if (field === 'nom') query = query.ilike('nom', `%${v}%`);
+        else if (field === 'ape') query = query.ilike('ape', `%${v}%`);
 
-        const { data } = await query.order('ing', { ascending: false }).limit(1);
+        const { data } = await query.order('ing', { ascending: false }).limit(10);
         
         if (data?.length > 0) { 
-            const r = data[0]; 
-            if(r.dni) document.getElementById('dni').value = r.dni; 
-            document.getElementById('nom').value = r.nom; 
-            document.getElementById('ape').value = r.ape; 
+            box.innerHTML = '';
+            box.style.display = 'block';
+            
+            // Filtramos duplicados por DNI
+            const unicos = [...new Map(data.map(item => [item.dni, item])).values()];
+
+            unicos.forEach(r => {
+                const item = document.createElement('div');
+                item.className = 'sugerencia-item';
+                item.innerHTML = `<strong>${r.nom} ${r.ape}</strong><br><small>DNI: ${r.dni || 'S/D'}</small>`;
+                item.onclick = () => {
+                    document.getElementById('dni').value = r.dni || '';
+                    document.getElementById('nom').value = r.nom;
+                    document.getElementById('ape').value = r.ape;
+                    box.style.display = 'none';
+                };
+                box.appendChild(item);
+            });
         }
     }
+
+    // Cerrar listas si se hace clic afuera
+    document.addEventListener('click', (e) => {
+        if (!e.target.closest('.input-group')) {
+            document.querySelectorAll('.sugerencias-lista').forEach(el => el.style.display = 'none');
+        }
+    });
 </script>
 </body>
 </html>
