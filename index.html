@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>San Isidro - Cabina de Custodia V77</title>
+    <title>San Isidro - Cabina de Custodia V78</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
         :root {
@@ -78,7 +78,7 @@
         <button class="tab-btn" onclick="openTab('caja')">CAJA CHICA</button>
     </div>
 
-    <!-- TAB ACCESO (IGUAL) -->
+    <!-- TAB ACCESO -->
     <div id="acceso" class="tab-content active">
         <div class="section">
             <form id="f-acc" class="grid" onsubmit="guardarAcceso(event)">
@@ -92,11 +92,17 @@
                 <div style="display: flex; gap: 10px;"><button type="submit" id="btn-acc-save" class="btn-main">INGRESAR PERSONA</button><button type="button" id="btn-acc-cancel" class="btn-del hidden" onclick="cancelarEditAcc()">CANCELAR</button></div>
             </form>
         </div>
-        <div class="controls-row"><input type="text" id="acc-search" class="search-input" placeholder="Filtrar tabla..." oninput="renderAcc()"><button id="btn-solo-sitio" class="btn-tool" onclick="toggleSitio()">EN LA QUINTA</button><button class="btn-tool" onclick="exportData('acceso')">EXPORTAR</button></div>
+        <div class="controls-row">
+            <input type="text" id="acc-search" class="search-input" placeholder="Filtrar tabla..." oninput="renderAcc()">
+            <button id="btn-solo-sitio" class="btn-tool" onclick="toggleSitio()">EN LA QUINTA</button>
+            <button class="btn-tool" onclick="exportData('acceso')">EXPORTAR</button>
+            <button class="btn-tool" onclick="document.getElementById('imp-acc').click()">IMPORTAR</button>
+            <input type="file" id="imp-acc" class="hidden" onchange="importData(event, 'acceso')">
+        </div>
         <table><thead><tr><th>Persona</th><th>DNI</th><th>Motivo</th><th>Ingreso</th><th>Egreso</th><th>Doc</th><th>Acciones</th></tr></thead><tbody id="t-acc"></tbody></table>
     </div>
 
-    <!-- TAB PAQUETES (IGUAL) -->
+    <!-- TAB PAQUETES -->
     <div id="paquetes" class="tab-content">
         <div class="section">
             <form id="f-paq" class="grid" onsubmit="guardarPaquete(event)">
@@ -109,10 +115,16 @@
                 <div style="display: flex; gap: 10px; width: 100%; grid-column: span 1 / -1;"><button type="submit" id="btn-paq-save" class="btn-main">CARGAR PAQUETE</button><button type="button" id="btn-paq-cancel" class="btn-del hidden" onclick="cancelarEditPaq()">CANCELAR</button></div>
             </form>
         </div>
+        <div class="controls-row">
+            <div style="flex-grow: 1;"></div>
+            <button class="btn-tool" onclick="exportData('paquetes')">EXPORTAR</button>
+            <button class="btn-tool" onclick="document.getElementById('imp-paq').click()">IMPORTAR</button>
+            <input type="file" id="imp-paq" class="hidden" onchange="importData(event, 'paquetes')">
+        </div>
         <table><thead><tr><th>Ref</th><th>Descripción</th><th>Para</th><th>Ingreso</th><th>Estado / Retiro</th><th>Doc</th><th>Acciones</th></tr></thead><tbody id="t-paq"></tbody></table>
     </div>
 
-    <!-- TAB CAJA CHICA (MODIFICADA) -->
+    <!-- TAB CAJA CHICA -->
     <div id="caja" class="tab-content">
         <div class="section">
             <div id="balance" style="font-size: 1.2rem; font-weight: bold; margin-bottom: 10px; color: var(--success);">Saldo: $0.00</div>
@@ -125,6 +137,12 @@
                 <div class="input-group edit-mode-cj hidden"><label>Fecha Manual</label><input type="datetime-local" id="edit-f-cj"></div>
                 <div style="display: flex; gap: 10px;"><button type="submit" id="btn-cj-save" class="btn-main">GRABAR REGISTRO</button><button type="button" id="btn-cj-cancel" class="btn-del hidden" onclick="cancelarEditCj()">CANCELAR</button></div>
             </form>
+        </div>
+        <div class="controls-row">
+            <div style="flex-grow: 1;"></div>
+            <button class="btn-tool" onclick="exportData('caja')">EXPORTAR</button>
+            <button class="btn-tool" onclick="document.getElementById('imp-cj').click()">IMPORTAR</button>
+            <input type="file" id="imp-cj" class="hidden" onchange="importData(event, 'caja')">
         </div>
         <table><thead><tr><th>Fecha</th><th>Responsable</th><th>Tipo</th><th>Monto</th><th>Motivo</th><th>Doc</th><th>Acciones</th></tr></thead><tbody id="t-cj"></tbody></table>
     </div>
@@ -188,7 +206,7 @@
         const tbody = document.getElementById('t-paq'); let { data } = await sb.from('paquetes').select('*').order('f', { ascending: false });
         tbody.innerHTML = '';
         data?.forEach(p => {
-            tbody.innerHTML += `<tr><td>${p.eid||'-'}</td><td>${p.desc}</td><td>${p.para}</td><td>${fDt(p.f)}</td><td><strong>${p.est}</strong>${p.f_ent ? `<br><span class="time-badge">Retiró: ${fDt(p.f_ent)}</span>` : ''}</td><td>${p.url?`<button class="btn-view" onclick="window.open('${p.url}')">📦</button>`:'-'}</td><td>${!p.f_ent ? `<button class="btn-exit" onclick="entregarPaq(${p.id})">ENTREGAR</button>` : ''} <button class="btn-edit" onclick='prepararEditPaq(${JSON.stringify(p)})'>✎</button> <button class="btn-del" onclick="del('paquetes',${p.id})">X</button></td></tr>`;
+            tbody.innerHTML += `<tr><td>${p.eid||'-'}</td><td>${p.desc}</td><td>${p.para}</td><td>${fDt(p.f)}</td><td><strong>${p.est}</strong>${p.f_ent ? `<br><span class="time-badge">Retiró: ${fDt(p.f_ent)}</span>` : ''}</td><td>${p.url?`<button class="btn-view" onclick="window.open('${r.url}')">📦</button>`:'-'}</td><td>${!p.f_ent ? `<button class="btn-exit" onclick="entregarPaq(${p.id})">ENTREGAR</button>` : ''} <button class="btn-edit" onclick='prepararEditPaq(${JSON.stringify(p)})'>✎</button> <button class="btn-del" onclick="del('paquetes',${p.id})">X</button></td></tr>`;
         });
     }
     async function entregarPaq(id) {
@@ -210,21 +228,12 @@
     function prepararEditPaq(p) { editIdPaq=p.id; document.getElementById('p-id').value=p.eid||''; document.getElementById('p-desc').value=p.desc; document.getElementById('p-para').value=p.para; document.querySelectorAll('.edit-mode-paq').forEach(el=>el.classList.remove('hidden')); document.getElementById('edit-f-paq').value=toInp(p.f); document.getElementById('edit-f-ent').value=p.f_ent ? toInp(p.f_ent) : ''; document.getElementById('btn-paq-save').innerText="ACTUALIZAR"; document.getElementById('btn-paq-cancel').classList.remove('hidden'); }
     function cancelarEditPaq() { editIdPaq=null; document.getElementById('f-paq').reset(); document.querySelectorAll('.edit-mode-paq').forEach(el=>el.classList.add('hidden')); document.getElementById('btn-paq-save').innerText="CARGAR PAQUETE"; document.getElementById('btn-paq-cancel').classList.add('hidden'); }
 
-    // RENDER CAJA MODIFICADO PARA MOSTRAR MOTIVO
     async function renderCaja() {
         const tbody = document.getElementById('t-cj'); let { data } = await sb.from('caja').select('*').order('f', { ascending: false });
         let bal = 0; tbody.innerHTML = '';
         data?.forEach(c => {
             bal += (c.tipo==='INGRESO' ? c.monto : -c.monto);
-            tbody.innerHTML += `<tr>
-                <td>${fDt(c.f)}</td>
-                <td>${c.resp}</td>
-                <td>${c.tipo}</td>
-                <td>$${c.monto.toFixed(2)}</td>
-                <td><small>${c.mot || '-'}</small></td>
-                <td>${c.url?`<button class="btn-view" onclick="window.open('${c.url}')">🧾</button>`:'-'}</td>
-                <td><button class="btn-edit" onclick='prepararEditCj(${JSON.stringify(c)})'>✎</button> <button class="btn-del" onclick="del('caja',${c.id})">X</button></td>
-            </tr>`;
+            tbody.innerHTML += `<tr><td>${fDt(c.f)}</td><td>${c.resp}</td><td>${c.tipo}</td><td>$${c.monto.toFixed(2)}</td><td><small>${c.mot || '-'}</small></td><td>${c.url?`<button class="btn-view" onclick="window.open('${c.url}')">🧾</button>`:'-'}</td><td><button class="btn-edit" onclick='prepararEditCj(${JSON.stringify(c)})'>✎</button> <button class="btn-del" onclick="del('caja',${c.id})">X</button></td></tr>`;
         });
         document.getElementById('balance').innerText = `Saldo: $${bal.toFixed(2)}`;
     }
@@ -256,6 +265,17 @@
         const { data } = await sb.from(t).select('*'); 
         const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' }); 
         const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `${t}_backup.json`; a.click(); 
+    }
+    async function importData(e, t) { 
+        const file = e.target.files[0]; if(!file) return; 
+        const reader = new FileReader(); 
+        reader.onload = async (ev) => { 
+            try { 
+                const json = JSON.parse(ev.target.result); 
+                for(const item of json) { delete item.id; await sb.from(t).insert([item]); } 
+                alert("Importación Exitosa"); renderAll(); 
+            } catch(err) { alert("Error"); } 
+        }; reader.readAsText(file); 
     }
 
     function triggerAuto(val, field) { clearTimeout(timerAuto); timerAuto = setTimeout(() => ejecutarAuto(val, field), 500); }
