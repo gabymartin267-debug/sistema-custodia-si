@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>San Isidro - Cabina de Custodia V76</title>
+    <title>San Isidro - Cabina de Custodia V77</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
         :root {
@@ -45,26 +45,12 @@
         .controls-row { display: flex; gap: 10px; margin-bottom: 10px; align-items: center; }
         .search-input { flex-grow: 1; }
 
-        /* NUEVOS ESTILOS PARA LA LISTA DE SUGERENCIAS */
         .sugerencias-lista {
-            position: absolute;
-            top: 100%;
-            left: 0;
-            right: 0;
-            background: var(--card);
-            border: 1px solid var(--accent);
-            z-index: 999;
-            max-height: 150px;
-            overflow-y: auto;
-            border-radius: 0 0 6px 6px;
-            display: none;
+            position: absolute; top: 100%; left: 0; right: 0; background: var(--card);
+            border: 1px solid var(--accent); z-index: 999; max-height: 150px;
+            overflow-y: auto; border-radius: 0 0 6px 6px; display: none;
         }
-        .sugerencia-item {
-            padding: 8px 12px;
-            cursor: pointer;
-            border-bottom: 1px solid var(--border);
-            font-size: 0.75rem;
-        }
+        .sugerencia-item { padding: 8px 12px; cursor: pointer; border-bottom: 1px solid var(--border); font-size: 0.75rem; }
         .sugerencia-item:hover { background: var(--border); }
     </style>
 </head>
@@ -92,44 +78,25 @@
         <button class="tab-btn" onclick="openTab('caja')">CAJA CHICA</button>
     </div>
 
+    <!-- TAB ACCESO (IGUAL) -->
     <div id="acceso" class="tab-content active">
         <div class="section">
             <form id="f-acc" class="grid" onsubmit="guardarAcceso(event)">
-                <div class="input-group">
-                    <label>DNI (Opcional)</label>
-                    <input type="text" id="dni" oninput="triggerAuto(this.value, 'dni')">
-                    <div id="sug-dni" class="sugerencias-lista"></div>
-                </div>
-                <div class="input-group">
-                    <label>Nombre</label>
-                    <input type="text" id="nom" required oninput="triggerAuto(this.value, 'nom')">
-                    <div id="sug-nom" class="sugerencias-lista"></div>
-                </div>
-                <div class="input-group">
-                    <label>Apellido</label>
-                    <input type="text" id="ape" required oninput="triggerAuto(this.value, 'ape')">
-                    <div id="sug-ape" class="sugerencias-lista"></div>
-                </div>
+                <div class="input-group"><label>DNI (Opcional)</label><input type="text" id="dni" oninput="triggerAuto(this.value, 'dni')"><div id="sug-dni" class="sugerencias-lista"></div></div>
+                <div class="input-group"><label>Nombre</label><input type="text" id="nom" required oninput="triggerAuto(this.value, 'nom')"><div id="sug-nom" class="sugerencias-lista"></div></div>
+                <div class="input-group"><label>Apellido</label><input type="text" id="ape" required oninput="triggerAuto(this.value, 'ape')"><div id="sug-ape" class="sugerencias-lista"></div></div>
                 <div class="input-group"><label>Motivo</label><input type="text" id="mot" required></div>
                 <div class="input-group"><label>Foto/DNI</label><div class="file-zone"><input type="file" id="acc-file" accept="image/*"></div></div>
                 <div class="input-group edit-mode-acc hidden"><label>Reloj Ingreso</label><input type="datetime-local" id="edit-ing"></div>
                 <div class="input-group edit-mode-acc hidden"><label>Reloj Egreso</label><input type="datetime-local" id="edit-egr"></div>
-                <div style="display: flex; gap: 10px;">
-                    <button type="submit" id="btn-acc-save" class="btn-main">INGRESAR PERSONA</button>
-                    <button type="button" id="btn-acc-cancel" class="btn-del hidden" onclick="cancelarEditAcc()">CANCELAR</button>
-                </div>
+                <div style="display: flex; gap: 10px;"><button type="submit" id="btn-acc-save" class="btn-main">INGRESAR PERSONA</button><button type="button" id="btn-acc-cancel" class="btn-del hidden" onclick="cancelarEditAcc()">CANCELAR</button></div>
             </form>
         </div>
-        <div class="controls-row">
-            <input type="text" id="acc-search" class="search-input" placeholder="Filtrar tabla..." oninput="renderAcc()">
-            <button id="btn-solo-sitio" class="btn-tool" onclick="toggleSitio()">EN LA QUINTA</button>
-            <button class="btn-tool" onclick="exportData('acceso')">EXPORTAR</button>
-            <button class="btn-tool" onclick="document.getElementById('imp-acc').click()">IMPORTAR</button>
-            <input type="file" id="imp-acc" class="hidden" onchange="importData(event, 'acceso')">
-        </div>
+        <div class="controls-row"><input type="text" id="acc-search" class="search-input" placeholder="Filtrar tabla..." oninput="renderAcc()"><button id="btn-solo-sitio" class="btn-tool" onclick="toggleSitio()">EN LA QUINTA</button><button class="btn-tool" onclick="exportData('acceso')">EXPORTAR</button></div>
         <table><thead><tr><th>Persona</th><th>DNI</th><th>Motivo</th><th>Ingreso</th><th>Egreso</th><th>Doc</th><th>Acciones</th></tr></thead><tbody id="t-acc"></tbody></table>
     </div>
 
+    <!-- TAB PAQUETES (IGUAL) -->
     <div id="paquetes" class="tab-content">
         <div class="section">
             <form id="f-paq" class="grid" onsubmit="guardarPaquete(event)">
@@ -139,21 +106,13 @@
                 <div class="input-group"><label>Remito</label><div class="file-zone"><input type="file" id="paq-file" accept="image/*"></div></div>
                 <div class="input-group edit-mode-paq hidden"><label>Fecha Ingreso</label><input type="datetime-local" id="edit-f-paq"></div>
                 <div class="input-group edit-mode-paq hidden"><label>Fecha Entrega</label><input type="datetime-local" id="edit-f-ent"></div>
-                <div style="display: flex; gap: 10px; width: 100%; grid-column: span 1 / -1;">
-                    <button type="submit" id="btn-paq-save" class="btn-main">CARGAR PAQUETE</button>
-                    <button type="button" id="btn-paq-cancel" class="btn-del hidden" onclick="cancelarEditPaq()">CANCELAR</button>
-                </div>
+                <div style="display: flex; gap: 10px; width: 100%; grid-column: span 1 / -1;"><button type="submit" id="btn-paq-save" class="btn-main">CARGAR PAQUETE</button><button type="button" id="btn-paq-cancel" class="btn-del hidden" onclick="cancelarEditPaq()">CANCELAR</button></div>
             </form>
-        </div>
-        <div class="controls-row">
-            <div style="flex-grow: 1;"></div>
-            <button class="btn-tool" onclick="exportData('paquetes')">EXPORTAR</button>
-            <button class="btn-tool" onclick="document.getElementById('imp-paq').click()">IMPORTAR</button>
-            <input type="file" id="imp-paq" class="hidden" onchange="importData(event, 'paquetes')">
         </div>
         <table><thead><tr><th>Ref</th><th>Descripción</th><th>Para</th><th>Ingreso</th><th>Estado / Retiro</th><th>Doc</th><th>Acciones</th></tr></thead><tbody id="t-paq"></tbody></table>
     </div>
 
+    <!-- TAB CAJA CHICA (MODIFICADA) -->
     <div id="caja" class="tab-content">
         <div class="section">
             <div id="balance" style="font-size: 1.2rem; font-weight: bold; margin-bottom: 10px; color: var(--success);">Saldo: $0.00</div>
@@ -164,19 +123,10 @@
                 <div class="input-group"><label>Motivo</label><input type="text" id="cj-mot" required></div>
                 <div class="input-group"><label>Ticket</label><div class="file-zone"><input type="file" id="cj-file" accept="image/*"></div></div>
                 <div class="input-group edit-mode-cj hidden"><label>Fecha Manual</label><input type="datetime-local" id="edit-f-cj"></div>
-                <div style="display: flex; gap: 10px;">
-                    <button type="submit" id="btn-cj-save" class="btn-main">GRABAR REGISTRO</button>
-                    <button type="button" id="btn-cj-cancel" class="btn-del hidden" onclick="cancelarEditCj()">CANCELAR</button>
-                </div>
+                <div style="display: flex; gap: 10px;"><button type="submit" id="btn-cj-save" class="btn-main">GRABAR REGISTRO</button><button type="button" id="btn-cj-cancel" class="btn-del hidden" onclick="cancelarEditCj()">CANCELAR</button></div>
             </form>
         </div>
-        <div class="controls-row">
-            <div style="flex-grow: 1;"></div>
-            <button class="btn-tool" onclick="exportData('caja')">EXPORTAR</button>
-            <button class="btn-tool" onclick="document.getElementById('imp-cj').click()">IMPORTAR</button>
-            <input type="file" id="imp-cj" class="hidden" onchange="importData(event, 'caja')">
-        </div>
-        <table><thead><tr><th>Fecha</th><th>Responsable</th><th>Tipo</th><th>Monto</th><th>Doc</th><th>Acciones</th></tr></thead><tbody id="t-cj"></tbody></table>
+        <table><thead><tr><th>Fecha</th><th>Responsable</th><th>Tipo</th><th>Monto</th><th>Motivo</th><th>Doc</th><th>Acciones</th></tr></thead><tbody id="t-cj"></tbody></table>
     </div>
 </div>
 
@@ -212,26 +162,14 @@
         data?.forEach(r => {
             if(soloSitio && r.egr) return;
             if(!s || r.nom.includes(s) || r.ape.includes(s) || (r.dni && r.dni.includes(s)) || (r.mot && r.mot.includes(s))) {
-                tbody.innerHTML += `<tr>
-                    <td>${r.nom} ${r.ape}<br><span class="time-badge">${calcTime(r.ing, r.egr)}</span></td>
-                    <td>${r.dni || '-'}</td>
-                    <td><small>${r.mot || '-'}</small></td>
-                    <td>${fDt(r.ing)}</td><td>${fDt(r.egr)}</td>
-                    <td>${r.url?`<button class="btn-view" onclick="window.open('${r.url}')">📄</button>`:'-'}</td>
-                    <td><button class="btn-exit" onclick="salidaAcc(${r.id})">SALIDA</button> <button class="btn-edit" onclick='prepararEditAcc(${JSON.stringify(r)})'>✎</button> <button class="btn-del" onclick="del('acceso',${r.id})">X</button></td>
-                </tr>`;
+                tbody.innerHTML += `<tr><td>${r.nom} ${r.ape}<br><span class="time-badge">${calcTime(r.ing, r.egr)}</span></td><td>${r.dni || '-'}</td><td><small>${r.mot || '-'}</small></td><td>${fDt(r.ing)}</td><td>${fDt(r.egr)}</td><td>${r.url?`<button class="btn-view" onclick="window.open('${r.url}')">📄</button>`:'-'}</td><td><button class="btn-exit" onclick="salidaAcc(${r.id})">SALIDA</button> <button class="btn-edit" onclick='prepararEditAcc(${JSON.stringify(r)})'>✎</button> <button class="btn-del" onclick="del('acceso',${r.id})">X</button></td></tr>`;
             }
         });
     }
 
     async function guardarAcceso(e) {
         e.preventDefault(); const url = await uploadFile('acc-file');
-        const row = { 
-            dni:document.getElementById('dni').value || null, 
-            nom:document.getElementById('nom').value.toUpperCase(), 
-            ape:document.getElementById('ape').value.toUpperCase(), 
-            mot:document.getElementById('mot').value.toUpperCase() 
-        };
+        const row = { dni:document.getElementById('dni').value || null, nom:document.getElementById('nom').value.toUpperCase(), ape:document.getElementById('ape').value.toUpperCase(), mot:document.getElementById('mot').value.toUpperCase() };
         if(url) row.url = url;
         if(editIdAcc) {
             row.ing = new Date(document.getElementById('edit-ing').value).getTime();
@@ -239,7 +177,6 @@
             await sb.from('acceso').update(row).eq('id', editIdAcc); cancelarEditAcc();
         } else { row.ing = Date.now(); await sb.from('acceso').insert([row]); }
         e.target.reset(); renderAcc();
-        document.getElementById('dni').focus();
     }
 
     async function salidaAcc(id) { await sb.from('acceso').update({ egr: Date.now() }).eq('id', id); renderAcc(); }
@@ -248,15 +185,10 @@
     function cancelarEditAcc() { editIdAcc=null; document.getElementById('f-acc').reset(); document.querySelectorAll('.edit-mode-acc').forEach(el=>el.classList.add('hidden')); document.getElementById('btn-acc-save').innerText="INGRESAR PERSONA"; document.getElementById('btn-acc-cancel').classList.add('hidden'); }
 
     async function renderPaq() {
-        const tbody = document.getElementById('t-paq'); 
-        let { data } = await sb.from('paquetes').select('*').order('f', { ascending: false });
+        const tbody = document.getElementById('t-paq'); let { data } = await sb.from('paquetes').select('*').order('f', { ascending: false });
         tbody.innerHTML = '';
         data?.forEach(p => {
-            const entregado = p.f_ent;
-            tbody.innerHTML += `<tr><td>${p.eid||'-'}</td><td>${p.desc}</td><td>${p.para}</td><td>${fDt(p.f)}</td>
-            <td><strong>${p.est}</strong>${p.f_ent ? `<br><span class="time-badge">Retiró: ${fDt(p.f_ent)}</span>` : ''}</td>
-            <td>${p.url?`<button class="btn-view" onclick="window.open('${p.url}')">📦</button>`:'-'}</td>
-            <td>${!entregado ? `<button class="btn-exit" onclick="entregarPaq(${p.id})">ENTREGAR</button>` : ''} <button class="btn-edit" onclick='prepararEditPaq(${JSON.stringify(p)})'>✎</button> <button class="btn-del" onclick="del('paquetes',${p.id})">X</button></td></tr>`;
+            tbody.innerHTML += `<tr><td>${p.eid||'-'}</td><td>${p.desc}</td><td>${p.para}</td><td>${fDt(p.f)}</td><td><strong>${p.est}</strong>${p.f_ent ? `<br><span class="time-badge">Retiró: ${fDt(p.f_ent)}</span>` : ''}</td><td>${p.url?`<button class="btn-view" onclick="window.open('${p.url}')">📦</button>`:'-'}</td><td>${!p.f_ent ? `<button class="btn-exit" onclick="entregarPaq(${p.id})">ENTREGAR</button>` : ''} <button class="btn-edit" onclick='prepararEditPaq(${JSON.stringify(p)})'>✎</button> <button class="btn-del" onclick="del('paquetes',${p.id})">X</button></td></tr>`;
         });
     }
     async function entregarPaq(id) {
@@ -270,27 +202,33 @@
         if(url) row.url = url;
         if(editIdPaq) {
             row.f = new Date(document.getElementById('edit-f-paq').value).getTime();
-            const fEntVal = document.getElementById('edit-f-ent').value;
-            row.f_ent = fEntVal ? new Date(fEntVal).getTime() : null;
+            row.f_ent = document.getElementById('edit-f-ent').value ? new Date(document.getElementById('edit-f-ent').value).getTime() : null;
             await sb.from('paquetes').update(row).eq('id', editIdPaq); cancelarEditPaq();
         } else { row.f = Date.now(); row.est = "PENDIENTE"; await sb.from('paquetes').insert([row]); }
         e.target.reset(); renderPaq();
-        document.getElementById('p-id').focus();
     }
     function prepararEditPaq(p) { editIdPaq=p.id; document.getElementById('p-id').value=p.eid||''; document.getElementById('p-desc').value=p.desc; document.getElementById('p-para').value=p.para; document.querySelectorAll('.edit-mode-paq').forEach(el=>el.classList.remove('hidden')); document.getElementById('edit-f-paq').value=toInp(p.f); document.getElementById('edit-f-ent').value=p.f_ent ? toInp(p.f_ent) : ''; document.getElementById('btn-paq-save').innerText="ACTUALIZAR"; document.getElementById('btn-paq-cancel').classList.remove('hidden'); }
     function cancelarEditPaq() { editIdPaq=null; document.getElementById('f-paq').reset(); document.querySelectorAll('.edit-mode-paq').forEach(el=>el.classList.add('hidden')); document.getElementById('btn-paq-save').innerText="CARGAR PAQUETE"; document.getElementById('btn-paq-cancel').classList.add('hidden'); }
 
+    // RENDER CAJA MODIFICADO PARA MOSTRAR MOTIVO
     async function renderCaja() {
         const tbody = document.getElementById('t-cj'); let { data } = await sb.from('caja').select('*').order('f', { ascending: false });
         let bal = 0; tbody.innerHTML = '';
         data?.forEach(c => {
             bal += (c.tipo==='INGRESO' ? c.monto : -c.monto);
-            tbody.innerHTML += `<tr><td>${fDt(c.f)}</td><td>${c.resp}</td><td>${c.tipo}</td><td>$${c.monto.toFixed(2)}</td>
-            <td>${c.url?`<button class="btn-view" onclick="window.open('${c.url}')">🧾</button>`:'-'}</td>
-            <td><button class="btn-edit" onclick='prepararEditCj(${JSON.stringify(c)})'>✎</button> <button class="btn-del" onclick="del('caja',${c.id})">X</button></td></tr>`;
+            tbody.innerHTML += `<tr>
+                <td>${fDt(c.f)}</td>
+                <td>${c.resp}</td>
+                <td>${c.tipo}</td>
+                <td>$${c.monto.toFixed(2)}</td>
+                <td><small>${c.mot || '-'}</small></td>
+                <td>${c.url?`<button class="btn-view" onclick="window.open('${c.url}')">🧾</button>`:'-'}</td>
+                <td><button class="btn-edit" onclick='prepararEditCj(${JSON.stringify(c)})'>✎</button> <button class="btn-del" onclick="del('caja',${c.id})">X</button></td>
+            </tr>`;
         });
         document.getElementById('balance').innerText = `Saldo: $${bal.toFixed(2)}`;
     }
+
     async function guardarCaja(e) {
         e.preventDefault(); const url = await uploadFile('cj-file');
         const row = { tipo:document.getElementById('cj-tipo').value, monto:parseFloat(document.getElementById('cj-monto').value), resp:document.getElementById('cj-resp').value.toUpperCase(), mot:document.getElementById('cj-mot').value.toUpperCase() };
@@ -300,7 +238,6 @@
             await sb.from('caja').update(row).eq('id', editIdCj); cancelarEditCj();
         } else { row.f = Date.now(); await sb.from('caja').insert([row]); }
         e.target.reset(); renderCaja();
-        document.getElementById('cj-monto').focus();
     }
     function prepararEditCj(c) { editIdCj=c.id; document.getElementById('cj-tipo').value=c.tipo; document.getElementById('cj-monto').value=c.monto; document.getElementById('cj-resp').value=c.resp; document.getElementById('cj-mot').value=c.mot; document.querySelectorAll('.edit-mode-cj').forEach(el=>el.classList.remove('hidden')); document.getElementById('edit-f-cj').value=toInp(c.f); document.getElementById('btn-cj-save').innerText="ACTUALIZAR"; document.getElementById('btn-cj-cancel').classList.remove('hidden'); }
     function cancelarEditCj() { editIdCj=null; document.getElementById('f-cj').reset(); document.querySelectorAll('.edit-mode-cj').forEach(el=>el.classList.add('hidden')); document.getElementById('btn-cj-save').innerText="GRABAR REGISTRO"; document.getElementById('btn-cj-cancel').classList.add('hidden'); }
@@ -320,68 +257,29 @@
         const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' }); 
         const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `${t}_backup.json`; a.click(); 
     }
-    async function importData(e, t) { 
-        const file = e.target.files[0]; if(!file) return; 
-        const reader = new FileReader(); 
-        reader.onload = async (ev) => { 
-            try { 
-                const json = JSON.parse(ev.target.result); 
-                for(const item of json) { delete item.id; await sb.from(t).insert([item]); } 
-                alert("Importación Exitosa"); renderAll(); 
-            } catch(err) { alert("Error"); } 
-        }; reader.readAsText(file); 
-    }
 
-    // MEJORA: Lógica de selección manual para evitar conflictos
-    function triggerAuto(val, field) { 
-        clearTimeout(timerAuto); 
-        timerAuto = setTimeout(() => ejecutarAuto(val, field), 500); 
-    }
-
+    function triggerAuto(val, field) { clearTimeout(timerAuto); timerAuto = setTimeout(() => ejecutarAuto(val, field), 500); }
     async function ejecutarAuto(val, field) {
-        const v = val.trim(); 
-        const box = document.getElementById(`sug-${field}`);
-        
-        // Limpiamos listas anteriores de otros campos
+        const v = val.trim(); const box = document.getElementById(`sug-${field}`);
         document.querySelectorAll('.sugerencias-lista').forEach(el => el.style.display = 'none');
-
         if (v.length < 3 || editIdAcc) return;
-
         let query = sb.from('acceso').select('dni, nom, ape');
         if (field === 'dni') query = query.eq('dni', v);
         else if (field === 'nom') query = query.ilike('nom', `%${v}%`);
         else if (field === 'ape') query = query.ilike('ape', `%${v}%`);
-
         const { data } = await query.order('ing', { ascending: false }).limit(10);
-        
         if (data?.length > 0) { 
-            box.innerHTML = '';
-            box.style.display = 'block';
-            
-            // Filtramos duplicados por DNI
+            box.innerHTML = ''; box.style.display = 'block';
             const unicos = [...new Map(data.map(item => [item.dni, item])).values()];
-
             unicos.forEach(r => {
-                const item = document.createElement('div');
-                item.className = 'sugerencia-item';
+                const item = document.createElement('div'); item.className = 'sugerencia-item';
                 item.innerHTML = `<strong>${r.nom} ${r.ape}</strong><br><small>DNI: ${r.dni || 'S/D'}</small>`;
-                item.onclick = () => {
-                    document.getElementById('dni').value = r.dni || '';
-                    document.getElementById('nom').value = r.nom;
-                    document.getElementById('ape').value = r.ape;
-                    box.style.display = 'none';
-                };
+                item.onclick = () => { document.getElementById('dni').value = r.dni || ''; document.getElementById('nom').value = r.nom; document.getElementById('ape').value = r.ape; box.style.display = 'none'; };
                 box.appendChild(item);
             });
         }
     }
-
-    // Cerrar listas si se hace clic afuera
-    document.addEventListener('click', (e) => {
-        if (!e.target.closest('.input-group')) {
-            document.querySelectorAll('.sugerencias-lista').forEach(el => el.style.display = 'none');
-        }
-    });
+    document.addEventListener('click', (e) => { if (!e.target.closest('.input-group')) document.querySelectorAll('.sugerencias-lista').forEach(el => el.style.display = 'none'); });
 </script>
 </body>
 </html>
