@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>San Isidro - Cabina de Custodia V78</title>
+    <title>San Isidro - Cabina de Custodia V79</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
         :root {
@@ -78,7 +78,6 @@
         <button class="tab-btn" onclick="openTab('caja')">CAJA CHICA</button>
     </div>
 
-    <!-- TAB ACCESO -->
     <div id="acceso" class="tab-content active">
         <div class="section">
             <form id="f-acc" class="grid" onsubmit="guardarAcceso(event)">
@@ -102,7 +101,6 @@
         <table><thead><tr><th>Persona</th><th>DNI</th><th>Motivo</th><th>Ingreso</th><th>Egreso</th><th>Doc</th><th>Acciones</th></tr></thead><tbody id="t-acc"></tbody></table>
     </div>
 
-    <!-- TAB PAQUETES -->
     <div id="paquetes" class="tab-content">
         <div class="section">
             <form id="f-paq" class="grid" onsubmit="guardarPaquete(event)">
@@ -124,7 +122,6 @@
         <table><thead><tr><th>Ref</th><th>Descripción</th><th>Para</th><th>Ingreso</th><th>Estado / Retiro</th><th>Doc</th><th>Acciones</th></tr></thead><tbody id="t-paq"></tbody></table>
     </div>
 
-    <!-- TAB CAJA CHICA -->
     <div id="caja" class="tab-content">
         <div class="section">
             <div id="balance" style="font-size: 1.2rem; font-weight: bold; margin-bottom: 10px; color: var(--success);">Saldo: $0.00</div>
@@ -175,7 +172,8 @@
 
     async function renderAcc() {
         const tbody = document.getElementById('t-acc'); const s = document.getElementById('acc-search').value.toUpperCase();
-        let { data } = await sb.from('acceso').select('*').order('ing', { ascending: false });
+        // MEJORA: Solo trae los ultimos 50 para que sea rapido
+        let { data } = await sb.from('acceso').select('*').order('ing', { ascending: false }).limit(50);
         tbody.innerHTML = '';
         data?.forEach(r => {
             if(soloSitio && r.egr) return;
@@ -203,10 +201,10 @@
     function cancelarEditAcc() { editIdAcc=null; document.getElementById('f-acc').reset(); document.querySelectorAll('.edit-mode-acc').forEach(el=>el.classList.add('hidden')); document.getElementById('btn-acc-save').innerText="INGRESAR PERSONA"; document.getElementById('btn-acc-cancel').classList.add('hidden'); }
 
     async function renderPaq() {
-        const tbody = document.getElementById('t-paq'); let { data } = await sb.from('paquetes').select('*').order('f', { ascending: false });
+        const tbody = document.getElementById('t-paq'); let { data } = await sb.from('paquetes').select('*').order('f', { ascending: false }).limit(50);
         tbody.innerHTML = '';
         data?.forEach(p => {
-            tbody.innerHTML += `<tr><td>${p.eid||'-'}</td><td>${p.desc}</td><td>${p.para}</td><td>${fDt(p.f)}</td><td><strong>${p.est}</strong>${p.f_ent ? `<br><span class="time-badge">Retiró: ${fDt(p.f_ent)}</span>` : ''}</td><td>${p.url?`<button class="btn-view" onclick="window.open('${r.url}')">📦</button>`:'-'}</td><td>${!p.f_ent ? `<button class="btn-exit" onclick="entregarPaq(${p.id})">ENTREGAR</button>` : ''} <button class="btn-edit" onclick='prepararEditPaq(${JSON.stringify(p)})'>✎</button> <button class="btn-del" onclick="del('paquetes',${p.id})">X</button></td></tr>`;
+            tbody.innerHTML += `<tr><td>${p.eid||'-'}</td><td>${p.desc}</td><td>${p.para}</td><td>${fDt(p.f)}</td><td><strong>${p.est}</strong>${p.f_ent ? `<br><span class="time-badge">Retiró: ${fDt(p.f_ent)}</span>` : ''}</td><td>${p.url?`<button class="btn-view" onclick="window.open('${p.url}')">📦</button>`:'-'}</td><td>${!p.f_ent ? `<button class="btn-exit" onclick="entregarPaq(${p.id})">ENTREGAR</button>` : ''} <button class="btn-edit" onclick='prepararEditPaq(${JSON.stringify(p)})'>✎</button> <button class="btn-del" onclick="del('paquetes',${p.id})">X</button></td></tr>`;
         });
     }
     async function entregarPaq(id) {
@@ -229,7 +227,7 @@
     function cancelarEditPaq() { editIdPaq=null; document.getElementById('f-paq').reset(); document.querySelectorAll('.edit-mode-paq').forEach(el=>el.classList.add('hidden')); document.getElementById('btn-paq-save').innerText="CARGAR PAQUETE"; document.getElementById('btn-paq-cancel').classList.add('hidden'); }
 
     async function renderCaja() {
-        const tbody = document.getElementById('t-cj'); let { data } = await sb.from('caja').select('*').order('f', { ascending: false });
+        const tbody = document.getElementById('t-cj'); let { data } = await sb.from('caja').select('*').order('f', { ascending: false }).limit(50);
         let bal = 0; tbody.innerHTML = '';
         data?.forEach(c => {
             bal += (c.tipo==='INGRESO' ? c.monto : -c.monto);
@@ -258,8 +256,20 @@
         return sb.storage.from('adjuntos').getPublicUrl(name).data.publicUrl;
     }
     async function del(t, id) { if(confirm("¿Eliminar?")) { await sb.from(t).delete().eq('id', id); renderAll(); } }
+    
+    // MEJORA: Solo recarga lo necesario segun el caso
     function renderAll() { renderAcc(); renderPaq(); renderCaja(); }
-    function openTab(id) { document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active')); document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active')); document.getElementById(id).classList.add('active'); event.currentTarget.classList.add('active'); }
+    
+    function openTab(id) { 
+        document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active')); 
+        document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active')); 
+        document.getElementById(id).classList.add('active'); 
+        event.currentTarget.classList.add('active');
+        // Al cambiar de tab, recargamos solo esa sección para asegurar datos frescos
+        if(id === 'acceso') renderAcc();
+        if(id === 'paquetes') renderPaq();
+        if(id === 'caja') renderCaja();
+    }
     
     async function exportData(t) { 
         const { data } = await sb.from(t).select('*'); 
