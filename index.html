@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>San Isidro - Cabina de Custodia V80</title>
+    <title>San Isidro - Cabina de Custodia V81</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
         :root {
@@ -92,7 +92,7 @@
             </form>
         </div>
         <div class="controls-row">
-            <input type="text" id="acc-search" class="search-input" placeholder="Buscar por nombre, apellido o DNI en todo el historial..." oninput="renderAcc()">
+            <input type="text" id="acc-search" class="search-input" placeholder="Buscar en todo el historial..." oninput="renderAcc()">
             <button id="btn-solo-sitio" class="btn-tool" onclick="toggleSitio()">EN LA QUINTA</button>
             <button class="btn-tool" onclick="exportData('acceso')">EXPORTAR</button>
             <button class="btn-tool" onclick="document.getElementById('imp-acc').click()">IMPORTAR</button>
@@ -170,16 +170,22 @@
     }
     async function handleLogout() { await sb.auth.signOut(); location.reload(); }
 
+    // MEJORA V81: Lógica combinada de Búsqueda y "En la Quinta" histórico
     async function renderAcc() {
         const tbody = document.getElementById('t-acc'); 
         const s = document.getElementById('acc-search').value.toUpperCase();
         
         let query = sb.from('acceso').select('*').order('ing', { ascending: false });
 
-        // LÓGICA V80: Si busca, rompe el límite de 50. Si no, carga rápido.
-        if (s.length > 0) {
+        if (soloSitio) {
+            // Si está activado "EN LA QUINTA", trae a todos los que NO tengan egreso (is null)
+            // Sin límite de 50 para encontrar a los de hace semanas
+            query = query.is('egr', null);
+        } else if (s.length > 0) {
+            // Si hay búsqueda, busca en todo el historial
             query = query.or(`nom.ilike.%${s}%,ape.ilike.%${s}%,dni.ilike.%${s}%,mot.ilike.%${s}%`);
         } else {
+            // Por defecto, carga rápida de los últimos 50
             query = query.limit(50);
         }
 
@@ -188,7 +194,6 @@
 
         tbody.innerHTML = '';
         data?.forEach(r => {
-            if(soloSitio && r.egr) return;
             tbody.innerHTML += `<tr><td>${r.nom} ${r.ape}<br><span class="time-badge">${calcTime(r.ing, r.egr)}</span></td><td>${r.dni || '-'}</td><td><small>${r.mot || '-'}</small></td><td>${fDt(r.ing)}</td><td>${fDt(r.egr)}</td><td>${r.url?`<button class="btn-view" onclick="window.open('${r.url}')">📄</button>`:'-'}</td><td><button class="btn-exit" onclick="salidaAcc(${r.id})">SALIDA</button> <button class="btn-edit" onclick='prepararEditAcc(${JSON.stringify(r)})'>✎</button> <button class="btn-del" onclick="del('acceso',${r.id})">X</button></td></tr>`;
         });
     }
@@ -206,7 +211,15 @@
     }
 
     async function salidaAcc(id) { await sb.from('acceso').update({ egr: Date.now() }).eq('id', id); renderAcc(); }
-    function toggleSitio() { soloSitio = !soloSitio; document.getElementById('btn-solo-sitio').classList.toggle('active'); renderAcc(); }
+    
+    function toggleSitio() { 
+        soloSitio = !soloSitio; 
+        document.getElementById('btn-solo-sitio').classList.toggle('active'); 
+        // Si activamos "En la Quinta", limpiamos el buscador para no mezclar filtros
+        if(soloSitio) document.getElementById('acc-search').value = '';
+        renderAcc(); 
+    }
+
     function prepararEditAcc(r) { editIdAcc=r.id; document.getElementById('dni').value=r.dni || ''; document.getElementById('nom').value=r.nom; document.getElementById('ape').value=r.ape; document.getElementById('mot').value=r.mot; document.querySelectorAll('.edit-mode-acc').forEach(el=>el.classList.remove('hidden')); document.getElementById('edit-ing').value=toInp(r.ing); document.getElementById('edit-egr').value=toInp(r.egr); document.getElementById('btn-acc-save').innerText="ACTUALIZAR"; document.getElementById('btn-acc-cancel').classList.remove('hidden'); }
     function cancelarEditAcc() { editIdAcc=null; document.getElementById('f-acc').reset(); document.querySelectorAll('.edit-mode-acc').forEach(el=>el.classList.add('hidden')); document.getElementById('btn-acc-save').innerText="INGRESAR PERSONA"; document.getElementById('btn-acc-cancel').classList.add('hidden'); }
 
