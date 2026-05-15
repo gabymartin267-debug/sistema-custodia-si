@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>San Isidro - Cabina de Custodia V79</title>
+    <title>San Isidro - Cabina de Custodia V80</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
         :root {
@@ -92,7 +92,7 @@
             </form>
         </div>
         <div class="controls-row">
-            <input type="text" id="acc-search" class="search-input" placeholder="Filtrar tabla..." oninput="renderAcc()">
+            <input type="text" id="acc-search" class="search-input" placeholder="Buscar por nombre, apellido o DNI en todo el historial..." oninput="renderAcc()">
             <button id="btn-solo-sitio" class="btn-tool" onclick="toggleSitio()">EN LA QUINTA</button>
             <button class="btn-tool" onclick="exportData('acceso')">EXPORTAR</button>
             <button class="btn-tool" onclick="document.getElementById('imp-acc').click()">IMPORTAR</button>
@@ -171,15 +171,25 @@
     async function handleLogout() { await sb.auth.signOut(); location.reload(); }
 
     async function renderAcc() {
-        const tbody = document.getElementById('t-acc'); const s = document.getElementById('acc-search').value.toUpperCase();
-        // MEJORA: Solo trae los ultimos 50 para que sea rapido
-        let { data } = await sb.from('acceso').select('*').order('ing', { ascending: false }).limit(50);
+        const tbody = document.getElementById('t-acc'); 
+        const s = document.getElementById('acc-search').value.toUpperCase();
+        
+        let query = sb.from('acceso').select('*').order('ing', { ascending: false });
+
+        // LÓGICA V80: Si busca, rompe el límite de 50. Si no, carga rápido.
+        if (s.length > 0) {
+            query = query.or(`nom.ilike.%${s}%,ape.ilike.%${s}%,dni.ilike.%${s}%,mot.ilike.%${s}%`);
+        } else {
+            query = query.limit(50);
+        }
+
+        let { data, error } = await query;
+        if (error) return;
+
         tbody.innerHTML = '';
         data?.forEach(r => {
             if(soloSitio && r.egr) return;
-            if(!s || r.nom.includes(s) || r.ape.includes(s) || (r.dni && r.dni.includes(s)) || (r.mot && r.mot.includes(s))) {
-                tbody.innerHTML += `<tr><td>${r.nom} ${r.ape}<br><span class="time-badge">${calcTime(r.ing, r.egr)}</span></td><td>${r.dni || '-'}</td><td><small>${r.mot || '-'}</small></td><td>${fDt(r.ing)}</td><td>${fDt(r.egr)}</td><td>${r.url?`<button class="btn-view" onclick="window.open('${r.url}')">📄</button>`:'-'}</td><td><button class="btn-exit" onclick="salidaAcc(${r.id})">SALIDA</button> <button class="btn-edit" onclick='prepararEditAcc(${JSON.stringify(r)})'>✎</button> <button class="btn-del" onclick="del('acceso',${r.id})">X</button></td></tr>`;
-            }
+            tbody.innerHTML += `<tr><td>${r.nom} ${r.ape}<br><span class="time-badge">${calcTime(r.ing, r.egr)}</span></td><td>${r.dni || '-'}</td><td><small>${r.mot || '-'}</small></td><td>${fDt(r.ing)}</td><td>${fDt(r.egr)}</td><td>${r.url?`<button class="btn-view" onclick="window.open('${r.url}')">📄</button>`:'-'}</td><td><button class="btn-exit" onclick="salidaAcc(${r.id})">SALIDA</button> <button class="btn-edit" onclick='prepararEditAcc(${JSON.stringify(r)})'>✎</button> <button class="btn-del" onclick="del('acceso',${r.id})">X</button></td></tr>`;
         });
     }
 
@@ -201,7 +211,8 @@
     function cancelarEditAcc() { editIdAcc=null; document.getElementById('f-acc').reset(); document.querySelectorAll('.edit-mode-acc').forEach(el=>el.classList.add('hidden')); document.getElementById('btn-acc-save').innerText="INGRESAR PERSONA"; document.getElementById('btn-acc-cancel').classList.add('hidden'); }
 
     async function renderPaq() {
-        const tbody = document.getElementById('t-paq'); let { data } = await sb.from('paquetes').select('*').order('f', { ascending: false }).limit(50);
+        const tbody = document.getElementById('t-paq'); 
+        let { data } = await sb.from('paquetes').select('*').order('f', { ascending: false }).limit(50);
         tbody.innerHTML = '';
         data?.forEach(p => {
             tbody.innerHTML += `<tr><td>${p.eid||'-'}</td><td>${p.desc}</td><td>${p.para}</td><td>${fDt(p.f)}</td><td><strong>${p.est}</strong>${p.f_ent ? `<br><span class="time-badge">Retiró: ${fDt(p.f_ent)}</span>` : ''}</td><td>${p.url?`<button class="btn-view" onclick="window.open('${p.url}')">📦</button>`:'-'}</td><td>${!p.f_ent ? `<button class="btn-exit" onclick="entregarPaq(${p.id})">ENTREGAR</button>` : ''} <button class="btn-edit" onclick='prepararEditPaq(${JSON.stringify(p)})'>✎</button> <button class="btn-del" onclick="del('paquetes',${p.id})">X</button></td></tr>`;
@@ -227,7 +238,8 @@
     function cancelarEditPaq() { editIdPaq=null; document.getElementById('f-paq').reset(); document.querySelectorAll('.edit-mode-paq').forEach(el=>el.classList.add('hidden')); document.getElementById('btn-paq-save').innerText="CARGAR PAQUETE"; document.getElementById('btn-paq-cancel').classList.add('hidden'); }
 
     async function renderCaja() {
-        const tbody = document.getElementById('t-cj'); let { data } = await sb.from('caja').select('*').order('f', { ascending: false }).limit(50);
+        const tbody = document.getElementById('t-cj'); 
+        let { data } = await sb.from('caja').select('*').order('f', { ascending: false }).limit(50);
         let bal = 0; tbody.innerHTML = '';
         data?.forEach(c => {
             bal += (c.tipo==='INGRESO' ? c.monto : -c.monto);
@@ -256,8 +268,6 @@
         return sb.storage.from('adjuntos').getPublicUrl(name).data.publicUrl;
     }
     async function del(t, id) { if(confirm("¿Eliminar?")) { await sb.from(t).delete().eq('id', id); renderAll(); } }
-    
-    // MEJORA: Solo recarga lo necesario segun el caso
     function renderAll() { renderAcc(); renderPaq(); renderCaja(); }
     
     function openTab(id) { 
@@ -265,7 +275,6 @@
         document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active')); 
         document.getElementById(id).classList.add('active'); 
         event.currentTarget.classList.add('active');
-        // Al cambiar de tab, recargamos solo esa sección para asegurar datos frescos
         if(id === 'acceso') renderAcc();
         if(id === 'paquetes') renderPaq();
         if(id === 'caja') renderCaja();
