@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>San Isidro - Cabina de Custodia V81</title>
+    <title>San Isidro - Cabina de Custodia V83</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
         :root {
@@ -41,7 +41,7 @@
         th, td { padding: 10px; text-align: left; border-bottom: 1px solid var(--border); font-size: 0.8rem; }
         th { background: #334155; color: var(--accent); }
         .file-zone { border: 1px dashed var(--border); padding: 5px; border-radius: 6px; background: #0f172a; }
-        .time-badge { font-size: 0.7rem; background: #334155; padding: 2px 6px; border-radius: 4px; color: var(--accent); display: block; margin-top: 4px; }
+        .time-badge { font-size: 0.7rem; background: #334155; padding: 2px 6px; border-radius: 4px; color: var(--accent); display: block; margin-top: 4px; width: fit-content; }
         .controls-row { display: flex; gap: 10px; margin-bottom: 10px; align-items: center; }
         .search-input { flex-grow: 1; }
 
@@ -92,7 +92,7 @@
             </form>
         </div>
         <div class="controls-row">
-            <input type="text" id="acc-search" class="search-input" placeholder="Buscar en todo el historial..." oninput="renderAcc()">
+            <input type="text" id="acc-search" class="search-input" placeholder="Buscar por nombre completo, apellido o DNI..." oninput="triggerSearch()">
             <button id="btn-solo-sitio" class="btn-tool" onclick="toggleSitio()">EN LA QUINTA</button>
             <button class="btn-tool" onclick="exportData('acceso')">EXPORTAR</button>
             <button class="btn-tool" onclick="document.getElementById('imp-acc').click()">IMPORTAR</button>
@@ -150,11 +150,18 @@
     const SB_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5hcGd1b2V3aXpqbWNsemRqeXJpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY5NTQ3NjksImV4cCI6MjA5MjUzMDc2OX0.5okmut-6fo5SALwqKX2EuZCoAiFVtdGlGOiOrw5nLlQ";
     const sb = supabase.createClient(SB_URL, SB_KEY);
 
-    let editIdAcc = null, editIdPaq = null, editIdCj = null, soloSitio = false, timerAuto;
+    let editIdAcc = null, editIdPaq = null, editIdCj = null, soloSitio = false, timerAuto, timerSearch;
 
     const fDt = (ms) => ms ? new Date(ms).toLocaleString('es-AR', { hour12: false }) : '-';
     const toInp = (ms) => ms ? new Date(ms - (new Date().getTimezoneOffset() * 60000)).toISOString().slice(0, 16) : '';
-    const calcTime = (start, end) => { const ms = (end || Date.now()) - start; return `${Math.floor(ms/3600000)}h ${Math.floor((ms%3600000)/60000)}m`; };
+    
+    // MEJORA V83: Cálculo exacto de permanencia fija si ya egresó
+    const calcTime = (start, end) => { 
+        const diff = (end || Date.now()) - start; 
+        const hours = Math.floor(diff / 3600000);
+        const minutes = Math.floor((diff % 3600000) / 60000);
+        return `${hours}h ${minutes}m${!end ? ' (Adentro)' : ''}`; 
+    };
 
     function updateClock() {
         const now = new Date();
@@ -170,22 +177,29 @@
     }
     async function handleLogout() { await sb.auth.signOut(); location.reload(); }
 
-    // MEJORA V81: Lógica combinada de Búsqueda y "En la Quinta" histórico
+    function triggerSearch() {
+        clearTimeout(timerSearch);
+        timerSearch = setTimeout(() => { renderAcc(); }, 400);
+    }
+
     async function renderAcc() {
         const tbody = document.getElementById('t-acc'); 
-        const s = document.getElementById('acc-search').value.toUpperCase();
+        const s = document.getElementById('acc-search').value.toUpperCase().trim();
         
         let query = sb.from('acceso').select('*').order('ing', { ascending: false });
 
         if (soloSitio) {
-            // Si está activado "EN LA QUINTA", trae a todos los que NO tengan egreso (is null)
-            // Sin límite de 50 para encontrar a los de hace semanas
             query = query.is('egr', null);
         } else if (s.length > 0) {
-            // Si hay búsqueda, busca en todo el historial
-            query = query.or(`nom.ilike.%${s}%,ape.ilike.%${s}%,dni.ilike.%${s}%,mot.ilike.%${s}%`);
+            const palabras = s.split(/\s+/);
+            let subQueries = [];
+            palabras.forEach(pal => {
+                if(pal.length > 0) {
+                    subQueries.push(`nom.ilike.%${pal}%,ape.ilike.%${pal}%,dni.ilike.%${pal}%,mot.ilike.%${pal}%`);
+                }
+            });
+            if(subQueries.length > 0) query = query.or(subQueries.join(','));
         } else {
-            // Por defecto, carga rápida de los últimos 50
             query = query.limit(50);
         }
 
@@ -194,6 +208,13 @@
 
         tbody.innerHTML = '';
         data?.forEach(r => {
+            if (s.length > 0 && !soloSitio) {
+                const palabras = s.split(/\s+/);
+                const cadenaCompleta = `${r.nom} ${r.ape} ${r.dni || ''} ${r.mot || ''}`;
+                const coincideTodo = palabras.every(pal => cadenaCompleta.includes(pal));
+                if (!coincideTodo) return;
+            }
+
             tbody.innerHTML += `<tr><td>${r.nom} ${r.ape}<br><span class="time-badge">${calcTime(r.ing, r.egr)}</span></td><td>${r.dni || '-'}</td><td><small>${r.mot || '-'}</small></td><td>${fDt(r.ing)}</td><td>${fDt(r.egr)}</td><td>${r.url?`<button class="btn-view" onclick="window.open('${r.url}')">📄</button>`:'-'}</td><td><button class="btn-exit" onclick="salidaAcc(${r.id})">SALIDA</button> <button class="btn-edit" onclick='prepararEditAcc(${JSON.stringify(r)})'>✎</button> <button class="btn-del" onclick="del('acceso',${r.id})">X</button></td></tr>`;
         });
     }
@@ -215,7 +236,6 @@
     function toggleSitio() { 
         soloSitio = !soloSitio; 
         document.getElementById('btn-solo-sitio').classList.toggle('active'); 
-        // Si activamos "En la Quinta", limpiamos el buscador para no mezclar filtros
         if(soloSitio) document.getElementById('acc-search').value = '';
         renderAcc(); 
     }
