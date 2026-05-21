@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>San Isidro - Cabina de Custodia V84</title>
+    <title>San Isidro - Cabina de Custodia V85</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
         :root {
@@ -16,6 +16,10 @@
         .header { border-bottom: 2px solid var(--accent); padding-bottom: 10px; margin-bottom: 5px; display: flex; justify-content: space-between; align-items: flex-start; }
         .brand-zone { text-align: right; }
         .powered { font-size: 0.7rem; color: var(--accent); font-weight: bold; margin-bottom: 2px; }
+        
+        /* MEJORA V85: Estilo para el Saldo Rápido en el Encabezado Principal */
+        .header-balance { font-size: 1.1rem; font-weight: bold; color: var(--success); margin-bottom: 3px; background: rgba(16, 185, 129, 0.1); padding: 3px 10px; border-radius: 6px; border: 1px solid rgba(16, 185, 129, 0.2); display: inline-block; }
+        
         .tabs { display: flex; gap: 5px; margin-top: 15px; margin-bottom: 15px; }
         .tab-btn { background: var(--card); color: var(--text); padding: 12px 20px; border-radius: 8px 8px 0 0; border: 1px solid var(--border); cursor: pointer; font-weight: bold; }
         .tab-btn.active { background: var(--accent); color: var(--bg); }
@@ -54,19 +58,17 @@
         .sugerencia-item { padding: 8px 12px; cursor: pointer; border-bottom: 1px solid var(--border); font-size: 0.75rem; }
         .sugerencia-item:hover { background: var(--border); }
 
-        /* Área de encabezado para PDF (Oculta en pantalla) */
+        /* Área de encabezado para PDF */
         .print-header { display: none; }
 
-        /* MEJORA V84: ESTILOS EXCLUSIVOS PARA IMPRESIÓN / GUARDADO PDF */
         @media print {
             @page { size: A4; margin: 15mm; }
             body { background: white !important; color: black !important; padding: 0; font-size: 10pt; }
             #login-block, #app-block > .header, .tabs, .section, .controls-row, th:last-child, td:last-child, .btn-view { 
-                display: none !important; /* Oculta todo lo innecesario */
+                display: none !important; 
             }
             #app-block, #acceso, .tab-content.active { display: block !important; }
             
-            /* Encabezado formal del PDF */
             .print-header {
                 display: block !important;
                 border-bottom: 3px solid #0f172a;
@@ -76,7 +78,6 @@
             .print-header h2 { margin: 0; color: #0f172a; font-size: 16pt; text-transform: uppercase; letter-spacing: 1px; }
             .print-header-meta { display: flex; justify-content: space-between; margin-top: 10px; font-size: 9pt; color: #475569; }
             
-            /* Tabla adaptada a PDF corporativo */
             table { width: 100% !important; margin-top: 10px !important; border: 1px solid #cbd5e1 !important; }
             th { background: #0f172a !important; color: white !important; font-size: 9pt !important; padding: 8px !important; text-transform: uppercase; }
             td { background: white !important; color: black !important; border-bottom: 1px solid #e2e8f0 !important; padding: 8px !important; font-size: 9pt !important; }
@@ -107,6 +108,7 @@
         <div><h1 style="margin:0;">San Isidro - Cabina de Custodia</h1><button class="btn-del" onclick="handleLogout()" style="margin-top:5px;">SALIR</button></div>
         <div class="brand-zone">
             <div class="powered">Powered by GabyMartin</div>
+            <div><div id="global-balance" class="header-balance">Saldo Caja: $0.00</div></div>
             <div id="clock" style="font-size: 0.9rem; font-weight: bold; color: var(--accent);"></div>
         </div>
     </div>
@@ -258,7 +260,6 @@
         });
     }
 
-    // MEJORA V84: Función para disparar la impresión limpia a PDF
     function generarPDF() {
         const busqueda = document.getElementById('acc-search').value.trim();
         const filtroTxt = busqueda ? `FILTRO APLICADO: ${busqueda.toUpperCase()}` : "REPORTE COMPLETO (SIN FILTRO)";
@@ -266,7 +267,7 @@
         document.getElementById('print-fecha').innerHTML = `<strong>Fecha de emisión:</strong> ${new Date().toLocaleString('es-AR')}`;
         document.getElementById('print-filtro').innerText = filtroTxt;
         
-        window.print(); // Abre el cuadro del sistema para Guardar como PDF
+        window.print();
     }
 
     async function guardarAcceso(e) {
@@ -320,15 +321,23 @@
     function prepararEditPaq(p) { editIdPaq=p.id; document.getElementById('p-id').value=p.eid||''; document.getElementById('p-desc').value=p.desc; document.getElementById('p-para').value=p.para; document.querySelectorAll('.edit-mode-paq').forEach(el=>el.classList.remove('hidden')); document.getElementById('edit-f-paq').value=toInp(p.f); document.getElementById('edit-f-ent').value=p.f_ent ? toInp(p.f_ent) : ''; document.getElementById('btn-paq-save').innerText="ACTUALIZAR"; document.getElementById('btn-paq-cancel').classList.remove('hidden'); }
     function cancelarEditPaq() { editIdPaq=null; document.getElementById('f-paq').reset(); document.querySelectorAll('.edit-mode-paq').forEach(el=>el.classList.add('hidden')); document.getElementById('btn-paq-save').innerText="CARGAR PAQUETE"; document.getElementById('btn-paq-cancel').classList.add('hidden'); }
 
+    // MEJORA V85: Modificado para que calcule el saldo y actualice tanto el panel interno como el de cabecera
     async function renderCaja() {
         const tbody = document.getElementById('t-cj'); 
-        let { data } = await sb.from('caja').select('*').order('f', { ascending: false }).limit(50);
+        let { data } = await sb.from('caja').select('*').order('f', { ascending: false });
         let bal = 0; tbody.innerHTML = '';
-        data?.forEach(c => {
+        
+        data?.forEach((c, idx) => {
             bal += (c.tipo==='INGRESO' ? c.monto : -c.monto);
-            tbody.innerHTML += `<tr><td>${fDt(c.f)}</td><td>${c.resp}</td><td>${c.tipo}</td><td>$${c.monto.toFixed(2)}</td><td><small>${c.mot || '-'}</small></td><td>${c.url?`<button class="btn-view" onclick="window.open('${c.url}')">🧾</button>`:'-'}</td><td><button class="btn-edit" onclick='prepararEditCj(${JSON.stringify(c)})'>✎</button> <button class="btn-del" onclick="del('caja',${c.id})">X</button></td></tr>`;
+            // Limitamos a renderizar solo los últimos 50 en la tabla visual por rendimiento, pero sumamos todos para el saldo correcto
+            if(idx < 50) {
+                tbody.innerHTML += `<tr><td>${fDt(c.f)}</td><td>${c.resp}</td><td>${c.tipo}</td><td>$${c.monto.toFixed(2)}</td><td><small>${c.mot || '-'}</small></td><td>${c.url?`<button class="btn-view" onclick="window.open('${c.url}')">🧾</button>`:'-'}</td><td><button class="btn-edit" onclick='prepararEditCj(${JSON.stringify(c)})'>✎</button> <button class="btn-del" onclick="del('caja',${c.id})">X</button></td></tr>`;
+            }
         });
-        document.getElementById('balance').innerText = `Saldo: $${bal.toFixed(2)}`;
+        
+        const saldoFormateado = `Saldo: $${bal.toFixed(2)}`;
+        document.getElementById('balance').innerText = saldoFormateado;
+        document.getElementById('global-balance').innerText = `Saldo Caja: $${bal.toFixed(2)}`;
     }
 
     async function guardarCaja(e) {
@@ -351,6 +360,8 @@
         return sb.storage.from('adjuntos').getPublicUrl(name).data.publicUrl;
     }
     async function del(t, id) { if(confirm("¿Eliminar?")) { await sb.from(t).delete().eq('id', id); renderAll(); } }
+    
+    // MEJORA V85: Nos aseguramos de traer siempre los datos de caja al inicio para popular el saldo superior inmediatamente
     function renderAll() { renderAcc(); renderPaq(); renderCaja(); }
     
     function openTab(id) { 
