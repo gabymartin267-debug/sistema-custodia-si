@@ -353,17 +353,9 @@
     function prepararEditCj(c) { editIdCj=c.id; document.getElementById('cj-tipo').value=c.tipo; document.getElementById('cj-monto').value=c.monto; document.getElementById('cj-resp').value=c.resp; document.getElementById('cj-mot').value=c.mot; document.querySelectorAll('.edit-mode-cj').forEach(el=>el.classList.remove('hidden')); document.getElementById('edit-f-cj').value=toInp(c.f); document.getElementById('btn-cj-save').innerText="ACTUALIZAR"; document.getElementById('btn-cj-cancel').classList.remove('hidden'); }
     function cancelarEditCj() { editIdCj=null; document.getElementById('f-cj').reset(); document.querySelectorAll('.edit-mode-cj').forEach(el=>el.classList.add('hidden')); document.getElementById('btn-cj-save').innerText="GRABAR REGISTRO"; document.getElementById('btn-cj-cancel').classList.add('hidden'); }
 
-    // SOLUCIÓN AL PROBLEMA DEL .JPEG / .JPG EN MAYÚSCULAS (Blindado para celulares)
     async function uploadFile(id) {
         const file = document.getElementById(id).files[0]; if (!file) return null;
-        
-        // Extraemos la extensión del archivo y la pasamos a minúsculas automáticamente
-        const fileExt = file.name.split('.').pop().toLowerCase();
-        
-        // Creamos una lista limpia de caracteres permitidos para el nombre en el Storage
-        const cleanName = file.name.replace(/\s+/g, '_');
-        const name = `${Date.now()}_${cleanName}`;
-        
+        const name = `${Date.now()}_${file.name.replace(/\s+/g, '_')}`;
         await sb.storage.from('adjuntos').upload(name, file);
         return sb.storage.from('adjuntos').getPublicUrl(name).data.publicUrl;
     }
@@ -373,4 +365,54 @@
     function renderAll() { renderAcc(); renderPaq(); renderCaja(); }
     
     function openTab(id) { 
-        document.querySelectorAll('.tab-content').forEach(c =>
+        document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active')); 
+        document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active')); 
+        document.getElementById(id).classList.add('active'); 
+        event.currentTarget.classList.add('active');
+        if(id === 'acceso') renderAcc();
+        if(id === 'paquetes') renderPaq();
+        if(id === 'caja') renderCaja();
+    }
+    
+    async function exportData(t) { 
+        const { data } = await sb.from(t).select('*'); 
+        const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' }); 
+        const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `${t}_backup.json`; a.click(); 
+    }
+    async function importData(e, t) { 
+        const file = e.target.files[0]; if(!file) return; 
+        const reader = new FileReader(); 
+        reader.onload = async (ev) => { 
+            try { 
+                const json = JSON.parse(ev.target.result); 
+                for(const item of json) { delete item.id; await sb.from(t).insert([item]); } 
+                alert("Importación Exitosa"); renderAll(); 
+            } catch(err) { alert("Error"); } 
+        }; reader.readAsText(file); 
+    }
+
+    function triggerAuto(val, field) { clearTimeout(timerAuto); timerAuto = setTimeout(() => ejecutarAuto(val, field), 500); }
+    async function ejecutarAuto(val, field) {
+        const v = val.trim(); const box = document.getElementById(`sug-${field}`);
+        document.querySelectorAll('.sugerencias-lista').forEach(el => el.style.display = 'none');
+        if (v.length < 3 || editIdAcc) return;
+        let query = sb.from('acceso').select('dni, nom, ape');
+        if (field === 'dni') query = query.eq('dni', v);
+        else if (field === 'nom') query = query.ilike('nom', `%${v}%`);
+        else if (field === 'ape') query = query.ilike('ape', `%${v}%`);
+        const { data } = await query.order('ing', { ascending: false }).limit(10);
+        if (data?.length > 0) { 
+            box.innerHTML = ''; box.style.display = 'block';
+            const unicos = [...new Map(data.map(item => [item.dni, item])).values()];
+            unicos.forEach(r => {
+                const item = document.createElement('div'); item.className = 'sugerencia-item';
+                item.innerHTML = `<strong>${r.nom} ${r.ape}</strong><br><small>DNI: ${r.dni || 'S/D'}</small>`;
+                item.onclick = () => { document.getElementById('dni').value = r.dni || ''; document.getElementById('nom').value = r.nom; document.getElementById('ape').value = r.ape; box.style.display = 'none'; };
+                box.appendChild(item);
+            });
+        }
+    }
+    document.addEventListener('click', (e) => { if (!e.target.closest('.input-group')) document.querySelectorAll('.sugerencias-lista').forEach(el => el.style.display = 'none'); });
+</script>
+</body>
+</html>
