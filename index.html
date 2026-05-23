@@ -321,19 +321,26 @@
     function prepararEditPaq(p) { editIdPaq=p.id; document.getElementById('p-id').value=p.eid||''; document.getElementById('p-desc').value=p.desc; document.getElementById('p-para').value=p.para; document.querySelectorAll('.edit-mode-paq').forEach(el=>el.classList.remove('hidden')); document.getElementById('edit-f-paq').value=toInp(p.f); document.getElementById('edit-f-ent').value=p.f_ent ? toInp(p.f_ent) : ''; document.getElementById('btn-paq-save').innerText="ACTUALIZAR"; document.getElementById('btn-paq-cancel').classList.remove('hidden'); }
     function cancelarEditPaq() { editIdPaq=null; document.getElementById('f-paq').reset(); document.querySelectorAll('.edit-mode-paq').forEach(el=>el.classList.add('hidden')); document.getElementById('btn-paq-save').innerText="CARGAR PAQUETE"; document.getElementById('btn-paq-cancel').classList.add('hidden'); }
 
-    // MEJORA V85: Modificado para que calcule el saldo y actualice tanto el panel interno como el de cabecera
+    /* MEJORA V85 CORREGIDA: Calcula el saldo histórico en orden cronológico real antes de renderizar de forma descendente */
     async function renderCaja() {
         const tbody = document.getElementById('t-cj'); 
         let { data } = await sb.from('caja').select('*').order('f', { ascending: false });
-        let bal = 0; tbody.innerHTML = '';
+        let bal = 0; 
+        tbody.innerHTML = '';
         
-        data?.forEach((c, idx) => {
-            bal += (c.tipo==='INGRESO' ? c.monto : -c.monto);
-            // Limitamos a renderizar solo los últimos 50 en la tabla visual por rendimiento, pero sumamos todos para el saldo correcto
-            if(idx < 50) {
-                tbody.innerHTML += `<tr><td>${fDt(c.f)}</td><td>${c.resp}</td><td>${c.tipo}</td><td>$${c.monto.toFixed(2)}</td><td><small>${c.mot || '-'}</small></td><td>${c.url?`<button class="btn-view" onclick="window.open('${c.url}')">🧾</button>`:'-'}</td><td><button class="btn-edit" onclick='prepararEditCj(${JSON.stringify(c)})'>✎</button> <button class="btn-del" onclick="del('caja',${c.id})">X</button></td></tr>`;
-            }
-        });
+        if (data) {
+            // 1. Clonamos y damos vuelta el array para calcular el saldo real desde el primer movimiento histórico
+            [...data].reverse().forEach(c => {
+                bal += (c.tipo === 'INGRESO' ? c.monto : -c.monto);
+            });
+
+            // 2. Ahora renderizamos los últimos 50 movimientos en la tabla visual (manteniendo el orden descendente)
+            data.forEach((c, idx) => {
+                if(idx < 50) {
+                    tbody.innerHTML += `<tr><td>${fDt(c.f)}</td><td>${c.resp}</td><td>${c.tipo}</td><td>$${c.monto.toFixed(2)}</td><td><small>${c.mot || '-'}</small></td><td>${c.url?`<button class="btn-view" onclick="window.open('${c.url}')">🧾</button>`:'-'}</td><td><button class="btn-edit" onclick='prepararEditCj(${JSON.stringify(c)})'>✎</button> <button class="btn-del" onclick="del('caja',${c.id})">X</button></td></tr>`;
+                }
+            });
+        }
         
         const saldoFormateado = `Saldo: $${bal.toFixed(2)}`;
         document.getElementById('balance').innerText = saldoFormateado;
@@ -353,15 +360,33 @@
     function prepararEditCj(c) { editIdCj=c.id; document.getElementById('cj-tipo').value=c.tipo; document.getElementById('cj-monto').value=c.monto; document.getElementById('cj-resp').value=c.resp; document.getElementById('cj-mot').value=c.mot; document.querySelectorAll('.edit-mode-cj').forEach(el=>el.classList.remove('hidden')); document.getElementById('edit-f-cj').value=toInp(c.f); document.getElementById('btn-cj-save').innerText="ACTUALIZAR"; document.getElementById('btn-cj-cancel').classList.remove('hidden'); }
     function cancelarEditCj() { editIdCj=null; document.getElementById('f-cj').reset(); document.querySelectorAll('.edit-mode-cj').forEach(el=>el.classList.add('hidden')); document.getElementById('btn-cj-save').innerText="GRABAR REGISTRO"; document.getElementById('btn-cj-cancel').classList.add('hidden'); }
 
+    /* MEJORA: Limpia acentos, caracteres especiales y previene congelamiento del formulario en caso de error */
     async function uploadFile(id) {
-        const file = document.getElementById(id).files[0]; if (!file) return null;
-        const name = `${Date.now()}_${file.name.replace(/\s+/g, '_')}`;
-        await sb.storage.from('adjuntos').upload(name, file);
-        return sb.storage.from('adjuntos').getPublicUrl(name).data.publicUrl;
+        const file = document.getElementById(id).files[0]; 
+        if (!file) return null;
+        
+        const cleanName = file.name
+            .normalize("NFD")
+            .replace(/[\u0300-\u036f]/g, "") // Saca acentos
+            .replace(/[^a-zA-Z0-9.-]/g, "_"); // Reemplaza todo lo raro por guion bajo
+        
+        const name = `${Date.now()}_${cleanName}`;
+        
+        try {
+            const { error } = await sb.storage.from('adjuntos').upload(name, file);
+            if (error) {
+                alert("Error al subir la imagen a Storage: " + error.message);
+                return null;
+            }
+            return sb.storage.from('adjuntos').getPublicUrl(name).data.publicUrl;
+        } catch (err) {
+            alert("Error inesperado en el archivo: " + err.message);
+            return null;
+        }
     }
+    
     async function del(t, id) { if(confirm("¿Eliminar?")) { await sb.from(t).delete().eq('id', id); renderAll(); } }
     
-    // MEJORA V85: Nos aseguramos de traer siempre los datos de caja al inicio para popular el saldo superior inmediatamente
     function renderAll() { renderAcc(); renderPaq(); renderCaja(); }
     
     function openTab(id) { 
