@@ -347,20 +347,38 @@
         document.getElementById('global-balance').innerText = `Saldo Caja: $${bal.toFixed(2)}`;
     }
 
+    /* MEJORA FIJADA: Fuerza la vinculación de la URL de la imagen en la fila antes de insertarla */
     async function guardarCaja(e) {
-        e.preventDefault(); const url = await uploadFile('cj-file');
-        const row = { tipo:document.getElementById('cj-tipo').value, monto:parseFloat(document.getElementById('cj-monto').value), resp:document.getElementById('cj-resp').value.toUpperCase(), mot:document.getElementById('cj-mot').value.toUpperCase() };
-        if(url) row.url = url;
-        if(editIdCj) {
+        e.preventDefault();
+        const urlComprobante = await uploadFile('cj-file');
+        
+        const row = { 
+            tipo: document.getElementById('cj-tipo').value, 
+            monto: parseFloat(document.getElementById('cj-monto').value), 
+            resp: document.getElementById('cj-resp').value.toUpperCase(), 
+            mot: document.getElementById('cj-mot').value.toUpperCase() 
+        };
+        
+        if (urlComprobante) {
+            row.url = urlComprobante;
+        }
+        
+        if (editIdCj) {
             row.f = new Date(document.getElementById('edit-f-cj').value).getTime();
-            await sb.from('caja').update(row).eq('id', editIdCj); cancelarEditCj();
-        } else { row.f = Date.now(); await sb.from('caja').insert([row]); }
-        e.target.reset(); renderCaja();
+            await sb.from('caja').update(row).eq('id', editIdCj); 
+            cancelarEditCj();
+        } else { 
+            row.f = Date.now(); 
+            await sb.from('caja').insert([row]); 
+        }
+        e.target.reset(); 
+        renderCaja();
     }
+
     function prepararEditCj(c) { editIdCj=c.id; document.getElementById('cj-tipo').value=c.tipo; document.getElementById('cj-monto').value=c.monto; document.getElementById('cj-resp').value=c.resp; document.getElementById('cj-mot').value=c.mot; document.querySelectorAll('.edit-mode-cj').forEach(el=>el.classList.remove('hidden')); document.getElementById('edit-f-cj').value=toInp(c.f); document.getElementById('btn-cj-save').innerText="ACTUALIZAR"; document.getElementById('btn-cj-cancel').classList.remove('hidden'); }
     function cancelarEditCj() { editIdCj=null; document.getElementById('f-cj').reset(); document.querySelectorAll('.edit-mode-cj').forEach(el=>el.classList.add('hidden')); document.getElementById('btn-cj-save').innerText="GRABAR REGISTRO"; document.getElementById('btn-cj-cancel').classList.add('hidden'); }
 
-    /* MEJORA: Limpia acentos, caracteres especiales y previene congelamiento del formulario en caso de error */
+    /* MEJORA CONTROL DE ERRORES: Muestra el problema real en pantalla y consola */
     async function uploadFile(id) {
         const file = document.getElementById(id).files[0]; 
         if (!file) return null;
@@ -373,14 +391,18 @@
         const name = `${Date.now()}_${cleanName}`;
         
         try {
-            const { error } = await sb.storage.from('adjuntos').upload(name, file);
+            const { data, error } = await sb.storage.from('adjuntos').upload(name, file);
+            
             if (error) {
-                alert("Error al subir la imagen a Storage: " + error.message);
+                console.error("Error detallado de Supabase:", error);
+                alert(`Error de Storage: ${error.message}\n\nVerificá si el bucket 'adjuntos' tiene habilitadas las políticas de inserción pública (RLS) y si el archivo no supera el tamaño límite.`);
                 return null;
             }
+            
             return sb.storage.from('adjuntos').getPublicUrl(name).data.publicUrl;
         } catch (err) {
-            alert("Error inesperado en el archivo: " + err.message);
+            console.error("Error de código o red:", err);
+            alert("Error inesperado de conexión o lectura de archivo: " + err.message);
             return null;
         }
     }
