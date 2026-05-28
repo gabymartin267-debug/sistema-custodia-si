@@ -62,7 +62,7 @@
         .preview-container img { width: 100%; height: 100%; object-fit: cover; }
         .preview-remove { position: absolute; top: 0; right: 0; background: rgba(239, 68, 68, 0.8); color: white; border: none; font-size: 0.6rem; padding: 2px 5px; cursor: pointer; }
 
-        /* NUEVO STYLES: Modal para ver los Tickets/Documentos cargados */
+        /* MODAL FLOTANTE: Visor de documentos internos */
         .modal-viewer { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(15, 23, 42, 0.85); z-index: 10000; justify-content: center; align-items: center; backdrop-filter: blur(4px); }
         .modal-viewer-content { background: var(--card); padding: 15px; border-radius: 12px; border: 1px solid var(--accent); max-width: 90%; max-height: 85%; position: relative; display: flex; flex-direction: column; align-items: center; box-shadow: 0 10px 25px rgba(0,0,0,0.5); }
         .modal-viewer-content img { max-width: 100%; max-height: 70vh; object-fit: contain; border-radius: 6px; border: 1px solid var(--border); margin-top: 10px; }
@@ -104,6 +104,7 @@
     <button class="btn-main" onclick="handleLogin()">INGRESAR</button>
 </div>
 
+<!-- Modal Visor para ver los documentos e imágenes -->
 <div id="doc-viewer-modal" class="modal-viewer" onclick="closeDocViewer(event)">
     <div class="modal-viewer-content" onclick="event.stopPropagation()">
         <div class="modal-close-btn" onclick="closeDocViewer(null)">X</div>
@@ -266,7 +267,7 @@
         timerSearch = setTimeout(() => { renderAcc(); }, 400);
     }
 
-    // --- FUNCIONES DE PREVISUALIZACIÓN DE IMÁGENES ANTES DE SUBIR ---
+    // Previsualización local antes de enviar la foto
     function previewImage(input, previewContainerId) {
         const container = document.getElementById(previewContainerId);
         const img = container.querySelector('img');
@@ -285,12 +286,15 @@
     }
 
     function removeSelectedFile(inputId, previewContainerId) {
-        document.getElementById(inputId).value = '';
-        document.getElementById(previewContainerId).style.display = 'none';
-        document.getElementById(previewContainerId).querySelector('img').src = '';
+        if(document.getElementById(inputId)) document.getElementById(inputId).value = '';
+        const container = document.getElementById(previewContainerId);
+        if(container) {
+            container.style.display = 'none';
+            if(container.querySelector('img')) container.querySelector('img').src = '';
+        }
     }
 
-    // NUEVAS FUNCIONES JS: Manejo de Visor Interno (Pop-up) para Registros ya Guardados
+    // Funciones del Modal / Visor de fotos interno
     function openDocViewer(url, titulo) {
         if (!url) return;
         document.getElementById('modal-viewer-title').innerText = titulo || "Visualización de Documento";
@@ -300,7 +304,6 @@
     }
 
     function closeDocViewer(event) {
-        // Si el evento existe y no es disparado en el fondo gris externo, no hace nada.
         if (event && event.target !== document.getElementById('doc-viewer-modal')) return;
         document.getElementById('doc-viewer-modal').style.display = 'none';
         document.getElementById('modal-viewer-img').src = '';
@@ -340,8 +343,11 @@
         });
     }
 
+    // Subida estricta de archivos
     async function uploadFile(id, previewContainerId) {
         const fileInput = document.getElementById(id);
+        if (!fileInput || !fileInput.files) return null;
+        
         let file = fileInput.files[0];
         if (!file) return null;
         
@@ -351,15 +357,16 @@
 
         const name = `${Date.now()}_${file.name.replace(/\s+/g, '_')}`;
         const { error } = await sb.storage.from('adjuntos').upload(name, file);
-        if (error) { alert("Error: " + error.message); return null; }
+        if (error) { alert("Error al subir archivo: " + error.message); return null; }
         
         if(previewContainerId) removeSelectedFile(id, previewContainerId);
         return sb.storage.from('adjuntos').getPublicUrl(name).data.publicUrl;
     }
 
-    // MODIFICADO: Ahora el botón de la lupa/documento ejecuta openDocViewer en lugar de window.open
+    // --- SECCIÓN: ACCESOS ---
     async function renderAcc() {
         const tbody = document.getElementById('t-acc'); 
+        if(!tbody) return;
         const s = document.getElementById('acc-search').value.toUpperCase().trim();
         let query = sb.from('acceso').select('*').order('ing', { ascending: false });
 
@@ -388,16 +395,12 @@
                 if (!coincideTodo) return;
             }
 
-            tbody.innerHTML += `<tr><td>${r.nom} ${r.ape}<br><span class="time-badge">${calcTime(r.ing, r.egr)}</span></td><td>${r.dni || '-'}</td><td><small>${r.mot || '-'}</small></td><td>${fDt(r.ing)}</td><td>${fDt(r.egr)}</td><td>${r.url?`<button class="btn-view" onclick="openDocViewer('${r.url}', 'DNI/Foto: ${r.nom} ${r.ape}')">📄</button>`:'-'}</td><td><button class="btn-exit" onclick="salidaAcc(${r.id})">SALIDA</button> <button class="btn-edit" onclick='prepararEditAcc(${JSON.stringify(r)})'>✎</button> <button class="btn-del" onclick="del('acceso',${r.id})">X</button></td></tr>`;
-        });
-    }
+            const botonDoc = (r.url && r.url.trim() !== "" && r.url !== null)
+                ? `<button class="btn-view" onclick="openDocViewer('${r.url}', 'DNI/Foto: ${r.nom} ${r.ape}')">📄</button>`
+                : '-';
 
-    function generarPDF() {
-        const busqueda = document.getElementById('acc-search').value.trim();
-        const filtroTxt = busqueda ? `FILTRO APLICADO: ${busqueda.toUpperCase()}` : "REPORTE COMPLETO (SIN FILTRO)";
-        document.getElementById('print-fecha').innerHTML = `<strong>Fecha de emisión:</strong> ${new Date().toLocaleString('es-AR')}`;
-        document.getElementById('print-filtro').innerText = filtroTxt;
-        window.print();
+            tbody.innerHTML += `<tr><td>${r.nom} ${r.ape}<br><span class="time-badge">${calcTime(r.ing, r.egr)}</span></td><td>${r.dni || '-'}</td><td><small>${r.mot || '-'}</small></td><td>${fDt(r.ing)}</td><td>${fDt(r.egr)}</td><td>${botonDoc}</td><td><button class="btn-exit" onclick="salidaAcc(${r.id})">SALIDA</button> <button class="btn-edit" onclick='prepararEditAcc(${JSON.stringify(r)})'>✎</button> <button class="btn-del" onclick="del('acceso',${r.id})">X</button></td></tr>`;
+        });
     }
 
     async function guardarAcceso(e) {
@@ -410,7 +413,7 @@
             row.egr = document.getElementById('edit-egr').value ? new Date(document.getElementById('edit-egr').value).getTime() : null;
             await sb.from('acceso').update(row).eq('id', editIdAcc); cancelarEditAcc();
         } else { row.ing = Date.now(); await sb.from('acceso').insert([row]); }
-        e.target.reset(); renderAcc();
+        e.target.reset(); if(document.getElementById('preview-acc')) document.getElementById('preview-acc').style.display = 'none'; renderAcc();
     }
 
     async function salidaAcc(id) { await sb.from('acceso').update({ egr: Date.now() }).eq('id', id); renderAcc(); }
@@ -425,20 +428,36 @@
     function prepararEditAcc(r) { editIdAcc=r.id; document.getElementById('dni').value=r.dni || ''; document.getElementById('nom').value=r.nom; document.getElementById('ape').value=r.ape; document.getElementById('mot').value=r.mot; document.querySelectorAll('.edit-mode-acc').forEach(el=>el.classList.remove('hidden')); document.getElementById('edit-ing').value=toInp(r.ing); document.getElementById('edit-egr').value=toInp(r.egr); document.getElementById('btn-acc-save').innerText="ACTUALIZAR"; document.getElementById('btn-acc-cancel').classList.remove('hidden'); }
     function cancelarEditAcc() { editIdAcc=null; document.getElementById('f-acc').reset(); document.querySelectorAll('.edit-mode-acc').forEach(el=>el.classList.add('hidden')); document.getElementById('btn-acc-save').innerText="INGRESAR PERSONA"; document.getElementById('btn-acc-cancel').classList.add('hidden'); removeSelectedFile('acc-file', 'preview-acc'); }
 
-    // MODIFICADO: Tabla paquetes ahora abre con openDocViewer
+    function generarPDF() {
+        const busqueda = document.getElementById('acc-search').value.trim();
+        const filtroTxt = busqueda ? `FILTRO APLICADO: ${busqueda.toUpperCase()}` : "REPORTE COMPLETO (SIN FILTRO)";
+        document.getElementById('print-fecha').innerHTML = `<strong>Fecha de emisión:</strong> ${new Date().toLocaleString('es-AR')}`;
+        document.getElementById('print-filtro').innerText = filtroTxt;
+        window.print();
+    }
+
+
+    // --- SECCIÓN: PAQUETERÍA ---
     async function renderPaq() {
         const tbody = document.getElementById('t-paq'); 
+        if(!tbody) return;
         let { data } = await sb.from('paquetes').select('*').order('f', { ascending: false }).limit(50);
         tbody.innerHTML = '';
         data?.forEach(p => {
-            tbody.innerHTML += `<tr><td>${p.eid||'-'}</td><td>${p.desc}</td><td>${p.para}</td><td>${fDt(p.f)}</td><td><strong>${p.est}</strong>${p.f_ent ? `<br><span class="time-badge">Retiró: ${fDt(p.f_ent)}</span>` : ''}</td><td>${p.url?`<button class="btn-view" onclick="openDocViewer('${p.url}', 'Remito Paquete: ${p.desc}')">📦</button>`:'-'}</td><td>${!p.f_ent ? `<button class="btn-exit" onclick="entregarPaq(${p.id})">ENTREGAR</button>` : ''} <button class="btn-edit" onclick='prepararEditPaq(${JSON.stringify(p)})'>✎</button> <button class="btn-del" onclick="del('paquetes',${p.id})">X</button></td></tr>`;
+            const botonDoc = (p.url && p.url.trim() !== "" && p.url !== null)
+                ? `<button class="btn-view" onclick="openDocViewer('${p.url}', 'Remito Paquete: ${p.desc}')">📦</button>`
+                : '-';
+
+            tbody.innerHTML += `<tr><td>${p.eid||'-'}</td><td>${p.desc}</td><td>${p.para}</td><td>${fDt(p.f)}</td><td><strong>${p.est}</strong>${p.f_ent ? `<br><span class="time-badge">Retiró: ${fDt(p.f_ent)}</span>` : ''}</td><td>${botonDoc}</td><td>${!p.f_ent ? `<button class="btn-exit" onclick="entregarPaq(${p.id})">ENTREGAR</button>` : ''} <button class="btn-edit" onclick='prepararEditPaq(${JSON.stringify(p)})'>✎</button> <button class="btn-del" onclick="del('paquetes',${p.id})">X</button></td></tr>`;
         });
     }
+
     async function entregarPaq(id) {
         const nombre = prompt("¿Quién retira?"); if (!nombre) return;
         await sb.from('paquetes').update({ est: `ENTREGADO A: ${nombre.toUpperCase()}`, f_ent: Date.now() }).match({ id: Number(id) });
         renderPaq();
     }
+
     async function guardarPaquete(e) {
         e.preventDefault(); 
         const url = await uploadFile('paq-file', 'preview-paq');
@@ -449,21 +468,42 @@
             row.f_ent = document.getElementById('edit-f-ent').value ? new Date(document.getElementById('edit-f-ent').value).getTime() : null;
             await sb.from('paquetes').update(row).eq('id', editIdPaq); cancelarEditPaq();
         } else { row.f = Date.now(); row.est = "PENDIENTE"; await sb.from('paquetes').insert([row]); }
-        e.target.reset(); renderPaq();
+        e.target.reset(); if(document.getElementById('preview-paq')) document.getElementById('preview-paq').style.display = 'none'; renderPaq();
     }
+
     function prepararEditPaq(p) { editIdPaq=p.id; document.getElementById('p-id').value=p.eid||''; document.getElementById('p-desc').value=p.desc; document.getElementById('p-para').value=p.para; document.querySelectorAll('.edit-mode-paq').forEach(el=>el.classList.remove('hidden')); document.getElementById('edit-f-paq').value=toInp(p.f); document.getElementById('edit-f-ent').value=p.f_ent ? toInp(p.f_ent) : ''; document.getElementById('btn-paq-save').innerText="ACTUALIZAR"; document.getElementById('btn-paq-cancel').classList.remove('hidden'); }
     function cancelarEditPaq() { editIdPaq=null; document.getElementById('f-paq').reset(); document.querySelectorAll('.edit-mode-paq').forEach(el=>el.classList.add('hidden')); document.getElementById('btn-paq-save').innerText="CARGAR PAQUETE"; document.getElementById('btn-paq-cancel').classList.add('hidden'); removeSelectedFile('paq-file', 'preview-paq'); }
 
-    // MODIFICADO: Tabla caja chica ahora abre con openDocViewer
+
+    // --- SECCIÓN: CAJA CHICA (CORREGIDA COMPLETAMENTE) ---
     async function renderCaja() {
         const tbody = document.getElementById('t-cj'); 
-        let { data } = await sb.from('caja').select('*').order('f', { ascending: false });
+        if(!tbody) return;
+        let { data, error } = await sb.from('caja').select('*').order('f', { ascending: false });
+        if (error) return;
+        
         let bal = 0; tbody.innerHTML = '';
         
         data?.forEach((c, idx) => {
             bal += (c.tipo==='INGRESO' ? c.monto : -c.monto);
             if(idx < 50) {
-                tbody.innerHTML += `<tr><td>${fDt(c.f)}</td><td>${c.resp}</td><td>${c.tipo}</td><td>$${c.monto.toFixed(2)}</td><td><small>${c.mot || '-'}</small></td><td>${c.url?`<button class="btn-view" onclick="openDocViewer('${c.url}', 'Ticket Caja - $${c.monto}: ${c.mot}')">🧾</button>`:'-'}</td><td><button class="btn-edit" onclick='prepararEditCj(${JSON.stringify(c)})'>✎</button> <button class="btn-del" onclick="del('caja',${c.id})">X</button></td></tr>`;
+                // Chequeo explícito de la existencia de la URL en la base de datos
+                const botonDoc = (c.url && c.url.trim() !== "" && c.url !== null) 
+                    ? `<button class="btn-view" onclick="openDocViewer('${c.url}', 'Ticket Caja - $${c.monto}: ${c.mot}')">🧾</button>` 
+                    : '-';
+
+                tbody.innerHTML += `<tr>
+                    <td>${fDt(c.f)}</td>
+                    <td>${c.resp}</td>
+                    <td>${c.tipo}</td>
+                    <td>$${c.monto.toFixed(2)}</td>
+                    <td><small>${c.mot || '-'}</small></td>
+                    <td>${botonDoc}</td>
+                    <td>
+                        <button class="btn-edit" onclick='prepararEditCj(${JSON.stringify(c)})'>✎</button> 
+                        <button class="btn-del" onclick="del('caja',${c.id})">X</button>
+                    </td>
+                </tr>`;
             }
         });
         
@@ -474,19 +514,41 @@
 
     async function guardarCaja(e) {
         e.preventDefault(); 
+        
+        // Buscamos estrictamente en el input file de la caja chica
         const url = await uploadFile('cj-file', 'preview-cj');
-        const row = { tipo:document.getElementById('cj-tipo').value, monto:parseFloat(document.getElementById('cj-monto').value), resp:document.getElementById('cj-resp').value.toUpperCase(), mot:document.getElementById('cj-mot').value.toUpperCase() };
-        if(url) row.url = url;
+        
+        const row = { 
+            tipo: document.getElementById('cj-tipo').value, 
+            monto: parseFloat(document.getElementById('cj-monto').value), 
+            resp: document.getElementById('cj-resp').value.toUpperCase(), 
+            mot: document.getElementById('cj-mot').value.toUpperCase() 
+        };
+        
+        if(url) {
+            row.url = url; // Vinculamos la URL devuelta por Supabase Storage
+        }
+        
         if(editIdCj) {
             row.f = new Date(document.getElementById('edit-f-cj').value).getTime();
-            await sb.from('caja').update(row).eq('id', editIdCj); cancelarEditCj();
-        } else { row.f = Date.now(); await sb.from('caja').insert([row]); }
-        e.target.reset(); renderCaja();
+            await sb.from('caja').update(row).eq('id', editIdCj); 
+            cancelarEditCj();
+        } else { 
+            row.f = Date.now(); 
+            await sb.from('caja').insert([row]); 
+        }
+        
+        e.target.reset(); 
+        if(document.getElementById('preview-cj')) document.getElementById('preview-cj').style.display = 'none'; 
+        renderCaja();
     }
+
     function prepararEditCj(c) { editIdCj=c.id; document.getElementById('cj-tipo').value=c.tipo; document.getElementById('cj-monto').value=c.monto; document.getElementById('cj-resp').value=c.resp; document.getElementById('cj-mot').value=c.mot; document.querySelectorAll('.edit-mode-cj').forEach(el=>el.classList.remove('hidden')); document.getElementById('edit-f-cj').value=toInp(c.f); document.getElementById('btn-cj-save').innerText="ACTUALIZAR"; document.getElementById('btn-cj-cancel').classList.remove('hidden'); }
     function cancelarEditCj() { editIdCj=null; document.getElementById('f-cj').reset(); document.querySelectorAll('.edit-mode-cj').forEach(el=>el.classList.add('hidden')); document.getElementById('btn-cj-save').innerText="GRABAR REGISTRO"; document.getElementById('btn-cj-cancel').classList.add('hidden'); removeSelectedFile('cj-file', 'preview-cj'); }
 
-    async function del(t, id) { if(confirm("¿Eliminar?")) { await sb.from(t).delete().eq('id', id); renderAll(); } }
+
+    // --- CONTROL GENERAL ---
+    async function del(t, id) { if(confirm("¿Eliminar registro?")) { await sb.from(t).delete().eq('id', id); renderAll(); } }
     
     function renderAll() { renderAcc(); renderPaq(); renderCaja(); }
     
@@ -513,7 +575,7 @@
                 const json = JSON.parse(ev.target.result); 
                 for(const item of json) { delete item.id; await sb.from(t).insert([item]); } 
                 alert("Importación Exitosa"); renderAll(); 
-            } catch(err) { alert("Error"); } 
+            } catch(err) { alert("Error al importar"); } 
         }; reader.readAsText(file); 
     }
 
