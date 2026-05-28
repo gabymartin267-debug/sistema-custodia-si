@@ -104,7 +104,6 @@
     <button class="btn-main" onclick="handleLogin()">INGRESAR</button>
 </div>
 
-<!-- Modal Visor para ver los documentos e imágenes -->
 <div id="doc-viewer-modal" class="modal-viewer" onclick="closeDocViewer(event)">
     <div class="modal-viewer-content" onclick="event.stopPropagation()">
         <div class="modal-close-btn" onclick="closeDocViewer(null)">X</div>
@@ -343,7 +342,7 @@
         });
     }
 
-    // Subida estricta de archivos
+    // Subida estricta de archivos utilizando la columna 'url'
     async function uploadFile(id, previewContainerId) {
         const fileInput = document.getElementById(id);
         if (!fileInput || !fileInput.files) return null;
@@ -475,24 +474,33 @@
     function cancelarEditPaq() { editIdPaq=null; document.getElementById('f-paq').reset(); document.querySelectorAll('.edit-mode-paq').forEach(el=>el.classList.add('hidden')); document.getElementById('btn-paq-save').innerText="CARGAR PAQUETE"; document.getElementById('btn-paq-cancel').classList.add('hidden'); removeSelectedFile('paq-file', 'preview-paq'); }
 
 
-    // --- SECCIÓN: CAJA CHICA (CORREGIDA COMPLETAMENTE) ---
+    // --- SECCIÓN: CAJA CHICA (MATEMÁTICA CRONOLÓGICA CORRECTA) ---
     async function renderCaja() {
         const tbody = document.getElementById('t-cj'); 
         if(!tbody) return;
-        let { data, error } = await sb.from('caja').select('*').order('f', { ascending: false });
+        
+        // Descargamos todo para asegurar que el cálculo matemático histórico no se corte
+        let { data, error } = await sb.from('caja').select('*');
         if (error) return;
         
-        let bal = 0; tbody.innerHTML = '';
+        // 1. ORDENAMOS CRONOLÓGICAMENTE (De más viejo a más nuevo) para calcular el saldo real exacto
+        data.sort((a, b) => a.f - b.f);
         
-        data?.forEach((c, idx) => {
-            bal += (c.tipo==='INGRESO' ? c.monto : -c.monto);
-            if(idx < 50) {
-                // Chequeo explícito de la existencia de la URL en la base de datos
-                const botonDoc = (c.url && c.url.trim() !== "" && c.url !== null) 
-                    ? `<button class="btn-view" onclick="openDocViewer('${c.url}', 'Ticket Caja - $${c.monto}: ${c.mot}')">🧾</button>` 
-                    : '-';
+        let bal = 0; 
+        let filasProcesadas = [];
+        
+        data.forEach((c) => {
+            // Se calcula el acumulado exacto según la línea de tiempo real
+            bal += (c.tipo === 'INGRESO' ? c.monto : -c.monto);
+            
+            const botonDoc = (c.url && c.url.trim() !== "" && c.url !== null) 
+                ? `<button class="btn-view" onclick="openDocViewer('${c.url}', 'Ticket Caja - $${c.monto}: ${c.mot}')">🧾</button>` 
+                : '-';
 
-                tbody.innerHTML += `<tr>
+            // Guardamos la fila emparejada con sus milisegundos
+            filasProcesadas.push({
+                fechaMs: c.f,
+                html: `<tr>
                     <td>${fDt(c.f)}</td>
                     <td>${c.resp}</td>
                     <td>${c.tipo}</td>
@@ -503,10 +511,20 @@
                         <button class="btn-edit" onclick='prepararEditCj(${JSON.stringify(c)})'>✎</button> 
                         <button class="btn-del" onclick="del('caja',${c.id})">X</button>
                     </td>
-                </tr>`;
-            }
+                </tr>`
+            });
         });
         
+        // 2. DAMOS VUELTA LA LISTA para que en la pantalla el operador siga viendo lo más nuevo arriba
+        filasProcesadas.sort((a, b) => b.fechaMs - a.fechaMs);
+        
+        // 3. SE RENDERIZAN LAS ÚLTIMAS 50 ACCIONES EN LA TABLA VISUAL
+        tbody.innerHTML = '';
+        filasProcesadas.slice(0, 50).forEach(fila => {
+            tbody.innerHTML += fila.html;
+        });
+        
+        // 4. ACTUALIZAMOS LOS CONTENEDORES DE SALDO CON EL TOTAL FINAL MATEMÁTICAMENTE COMPROBADO
         const saldoFormateado = `Saldo: $${bal.toFixed(2)}`;
         document.getElementById('balance').innerText = saldoFormateado;
         document.getElementById('global-balance').innerText = `Saldo Caja: $${bal.toFixed(2)}`;
@@ -515,7 +533,6 @@
     async function guardarCaja(e) {
         e.preventDefault(); 
         
-        // Buscamos estrictamente en el input file de la caja chica
         const url = await uploadFile('cj-file', 'preview-cj');
         
         const row = { 
@@ -526,7 +543,7 @@
         };
         
         if(url) {
-            row.url = url; // Vinculamos la URL devuelta por Supabase Storage
+            row.url = url; 
         }
         
         if(editIdCj) {
